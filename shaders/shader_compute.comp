@@ -46,7 +46,7 @@ void main()
     // }
 
     // Copy color and write the updated particle to the output buffer
-    // particleOut.color = particleIn.color;
+    particleOut.color = particleIn.color;
     
     // Apply changes
     particlesOut[index] = particleOut;

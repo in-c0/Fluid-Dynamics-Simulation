@@ -26,7 +26,7 @@
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-const uint32_t PARTICLE_COUNT = 8192;
+const uint32_t PARTICLE_COUNT = 131072;
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -791,7 +791,7 @@ private:
         // Initialize particles
         std::default_random_engine rndEngine((unsigned)time(nullptr));
         std::uniform_real_distribution<float> rndDist(-1.0f, 1.0f);
-        std::uniform_real_distribution<float> velocityDist(-0.00005f, 0.00005f);  // Random velocity range
+        std::uniform_real_distribution<float> velocityDist(-0.000005f, 0.000005f);  // Random velocity range
 
         // Initialize particle positions across the screen
         std::vector<Particle> particles(PARTICLE_COUNT);
