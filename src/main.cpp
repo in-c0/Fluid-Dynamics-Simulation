@@ -558,6 +558,7 @@ private:
     }
 
     void createComputeDescriptorSetLayout() {
+    // UBO (deltaTime)
         std::array<VkDescriptorSetLayoutBinding, 3> layoutBindings{};
         layoutBindings[0].binding = 0;
         layoutBindings[0].descriptorCount = 1;
@@ -565,12 +566,14 @@ private:
         layoutBindings[0].pImmutableSamplers = nullptr;
         layoutBindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
+    // SSBO In (Particle Input)
         layoutBindings[1].binding = 1;
         layoutBindings[1].descriptorCount = 1;
         layoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         layoutBindings[1].pImmutableSamplers = nullptr;
         layoutBindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
+    // SSBO Out (Particle Output)
         layoutBindings[2].binding = 2;
         layoutBindings[2].descriptorCount = 1;
         layoutBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -579,7 +582,7 @@ private:
 
         VkDescriptorSetLayoutCreateInfo layoutInfo{};
         layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutInfo.bindingCount = 3;
+        layoutInfo.bindingCount = static_cast<uint32_t>(layoutBindings.size());
         layoutInfo.pBindings = layoutBindings.data();
 
         if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &computeDescriptorSetLayout) != VK_SUCCESS) {
@@ -719,10 +722,17 @@ private:
         computeShaderStageInfo.module = computeShaderModule;
         computeShaderStageInfo.pName = "main";
 
+        VkPushConstantRange pushConstantRange{};
+        pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        pushConstantRange.offset = 0;
+        pushConstantRange.size = sizeof(glm::vec2);
+
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.setLayoutCount = 1;
         pipelineLayoutInfo.pSetLayouts = &computeDescriptorSetLayout;
+        pipelineLayoutInfo.pushConstantRangeCount = 1;  // One push constant range
+        pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;  // Push constant range for gravity
 
         if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &computePipelineLayout) != VK_SUCCESS) {
             throw std::runtime_error("failed to create compute pipeline layout!");
@@ -882,7 +892,8 @@ private:
             descriptorWrites[0].pBufferInfo = &uniformBufferInfo;
 
             VkDescriptorBufferInfo storageBufferInfoLastFrame{};
-            storageBufferInfoLastFrame.buffer = shaderStorageBuffers[(i - 1) % MAX_FRAMES_IN_FLIGHT];
+            size_t lastFrameIndex = (i + MAX_FRAMES_IN_FLIGHT - 1) % MAX_FRAMES_IN_FLIGHT;
+            storageBufferInfoLastFrame.buffer = shaderStorageBuffers[lastFrameIndex];
             storageBufferInfoLastFrame.offset = 0;
             storageBufferInfoLastFrame.range = sizeof(Particle) * PARTICLE_COUNT;
 
@@ -1073,6 +1084,10 @@ private:
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipelineLayout, 0, 1, &computeDescriptorSets[currentFrame], 0, nullptr);
 
+        // Set the push constant for gravity
+        glm::vec2 gravity = glm::vec2(0.0f, 0.00001f);
+        vkCmdPushConstants(commandBuffer, computePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(gravity), &gravity);
+
         vkCmdDispatch(commandBuffer, PARTICLE_COUNT / 256, 1, 1);
 
         if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
@@ -1109,11 +1124,14 @@ private:
     }
 
     void updateUniformBuffer(uint32_t currentImage) {
+        double currentTime = glfwGetTime();
         UniformBufferObject ubo{};
-        ubo.deltaTime = lastFrameTime * 2.0f;
+        ubo.deltaTime = static_cast<float>(currentTime - lastFrameTime);  // Calculate time since last frame
+        lastFrameTime = currentTime;
 
         memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
     }
+
 
     void drawFrame() {
         VkSubmitInfo submitInfo{};
