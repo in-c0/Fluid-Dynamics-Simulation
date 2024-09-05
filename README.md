@@ -13,10 +13,10 @@ Solving the Navier-Stokes Equations for Incompressible Flow
 
 ### Cloning the Repository
 
-    ```bash
-    git clone https://github.com/in-c0/three-body-simulation.git
-    cd three-body-simulation
-    ```
+```
+git clone https://github.com/in-c0/three-body-simulation.git
+cd three-body-simulation
+```
 
 ### Setting Up Dependencies
 
@@ -79,14 +79,14 @@ If you're not on the latest Ubuntu LTS version (e.g., 22.04 LTS), you can upgrad
 If this doesn't fix the issue, consider re-installing WSL and Ubuntu by following these steps:
  1. Open PowerShell or Command Prompt and run:
  3. Uninstall the current Ubuntu distribution:
-     ```
-     wsl --unregister Ubuntu
-     ```     
-     (or check `wsl --list --verbose` for specific distribution name to unregsiter)
+```
+wsl --unregister Ubuntu
+```     
+(or check `wsl --list --verbose` for specific distribution name to unregsiter)
  4. Reinstall Ubuntu LTS:
-     ```
-     wsl --install -d Ubuntu-22.04
-     ```
+ ```
+ wsl --install -d Ubuntu-22.04
+ ```
 
 If you prefer to work on a non-WSL/Ubuntu environment, or if you've encountered unsolvable issues during installation, you can download the prerequisite libraries from the official websites:
 - [GFortran](https://fortran-lang.org/learn/os_setup/install_gfortran/)
@@ -118,34 +118,33 @@ The base implementation can be found in the [`compute_shader.cpp` file](https://
 
 
 ## How it builds up / Feature Roadmap
+How it builds up from the provided compute shader is as follows: (implemented features are marked with [x])
 
-How it builds up from the provided compute shader is as follows: (implemented features are marked with [✔])
 
-
-Vulkan Instance initialisation (setting up surface, debug callbacks for validation layers) ([✔] - built-in to the sample compute_shader.cpp)
-Device Selection to support for adequate queue families (graphics and compute) ([✔] - built-in to the sample compute_shader.cpp)
-Swapchain Creation for presenting rendered images to the screen ([✔] - built-in to the sample compute_shader.cpp)
-Graphics pipeline setup (point primitives) ([✔] - built-in to the sample compute_shader.cpp)
-Compute pipeline setup for rendering particles (including descriptor set layout) ([✔] - built-in to the sample compute_shader.cpp)
-Basic Shader setup (vert, frag, compute) ([✔] - built-in to the sample compute_shader.cpp)
-Basic Render Loop and frame synchronization (semaphores, fences) ([✔]  - built-in to the sample compute_shader.cpp)
-Basic Gravity (downward push constant uniform layout) ([✔])
-Navier-Stokes Equations:
-ㄴ Grid-based Velocity Field ([ ])
-ㄴ Advection ([ ])
-ㄴ Diffusion ([ ])
-ㄴ Pressure calculation (enforcing incompressibility) ([ ])
-ㄴ Projection step ([ ])
+- [x] Vulkan Instance initialisation (setting up surface, debug callbacks for validation layers) (built-in to the sample compute_shader.cpp)
+- [x] Device Selection to support for adequate queue families (graphics and compute) (built-in to the sample compute_shader.cpp)
+- [x] Swapchain Creation for presenting rendered images to the screen (built-in to the sample compute_shader.cpp)
+- [x] Graphics pipeline setup (point primitives) (built-in to the sample compute_shader.cpp)
+- [x] Compute pipeline setup for rendering particles (including descriptor set layout) ( built-in to the sample compute_shader.cpp)
+- [x] Basic Shader setup (vert, frag, compute) (built-in to the sample compute_shader.cpp)
+- [x] Basic Render Loop and frame synchronization (semaphores, fences) (built-in to the sample compute_shader.cpp)
+- [x] Basic Gravity (downward push constant uniform layout)
+- [ ] Navier-Stokes Equations:
+- [ ] ㄴ Grid-based Velocity Field
+- [ ] ㄴ Advection
+- [ ] ㄴ Diffusion
+- [ ] ㄴ Pressure calculation (enforcing incompressibility)
+- [ ] ㄴ Projection step
 
 
 **Optional:**
-Boundary collisions [✔]
-Event handling (mouse, keyboard inputs) ([ ])
+- [x] Boundary collisions
+- [ ] Event handling (mouse, keyboard inputs)
 
 **In radar:**
-Workgroups for parallel processing ([ ])
-Memory barriers ([ ])
-Bilinear interpolation for advection accuracy ([ ])
+- [ ] Workgroups for parallel processing
+- [ ] Memory barriers
+- [ ] Bilinear interpolation for advection accuracy
 
 
 
