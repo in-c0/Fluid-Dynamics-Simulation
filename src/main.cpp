@@ -791,7 +791,7 @@ private:
         // Initialize particles
         std::default_random_engine rndEngine((unsigned)time(nullptr));
         std::uniform_real_distribution<float> rndDist(-1.0f, 1.0f);
-        std::uniform_real_distribution<float> velocityDist(-0.5f, 0.5f);  // Random velocity range
+        std::uniform_real_distribution<float> velocityDist(-0.00005f, 0.00005f);  // Random velocity range
 
         // Initialize particle positions across the screen
         std::vector<Particle> particles(PARTICLE_COUNT);
@@ -1095,8 +1095,13 @@ private:
 
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipelineLayout, 0, 1, &computeDescriptorSets[currentFrame], 0, nullptr);
 
+
+        std::default_random_engine rndEngine((unsigned)time(nullptr));
+        std::uniform_real_distribution<float> rand_grav(-0.000001f, 0.000001f);
+        float grav = rand_grav(rndEngine);
         // Set the push constant for gravity
-        glm::vec2 gravity = glm::vec2(0.0f, 0.00001f);
+        glm::vec2 gravity = glm::vec2(0.0f, 0.0f);
+
         vkCmdPushConstants(commandBuffer, computePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(gravity), &gravity);
 
         vkCmdDispatch(commandBuffer, PARTICLE_COUNT / 256, 1, 1);
