@@ -120,10 +120,12 @@ The base implementation can be found in the [`compute_shader.cpp` file](https://
 ## How it builds up / Feature Roadmap
 How it builds up from the provided compute shader is as follows: (implemented features are marked with [x])
 
+![image](https://github.com/user-attachments/assets/753328a1-53db-4ee7-96dc-9b2821fe79d1)
+
 
 - [x] Vulkan Instance initialisation (setting up surface, debug callbacks for validation layers)
 - [x] Device Selection to support for adequate queue families (graphics and compute)
-- [x] Swapchain Creation for presenting rendered images to the screen
+- [x] Renderpass and Swapchain Creation for presenting rendered images to the screen
 - [x] Graphics pipeline setup (point primitives)
 - [x] Compute pipeline setup for rendering particles (including descriptor set layout)
 - [x] Basic Shader setup (vert, frag, compute)
