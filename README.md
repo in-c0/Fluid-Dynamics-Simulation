@@ -121,13 +121,13 @@ The base implementation can be found in the [`compute_shader.cpp` file](https://
 How it builds up from the provided compute shader is as follows: (implemented features are marked with [x])
 
 
-- [x] Vulkan Instance initialisation (setting up surface, debug callbacks for validation layers) (built-in to the sample compute_shader.cpp)
-- [x] Device Selection to support for adequate queue families (graphics and compute) (built-in to the sample compute_shader.cpp)
-- [x] Swapchain Creation for presenting rendered images to the screen (built-in to the sample compute_shader.cpp)
-- [x] Graphics pipeline setup (point primitives) (built-in to the sample compute_shader.cpp)
-- [x] Compute pipeline setup for rendering particles (including descriptor set layout) ( built-in to the sample compute_shader.cpp)
-- [x] Basic Shader setup (vert, frag, compute) (built-in to the sample compute_shader.cpp)
-- [x] Basic Render Loop and frame synchronization (semaphores, fences) (built-in to the sample compute_shader.cpp)
+- [x] Vulkan Instance initialisation (setting up surface, debug callbacks for validation layers)
+- [x] Device Selection to support for adequate queue families (graphics and compute)
+- [x] Swapchain Creation for presenting rendered images to the screen
+- [x] Graphics pipeline setup (point primitives)
+- [x] Compute pipeline setup for rendering particles (including descriptor set layout)
+- [x] Basic Shader setup (vert, frag, compute)
+- [x] Basic Render Loop and frame synchronization (semaphores, fences)
 - [x] Basic Gravity (downward push constant uniform layout)
 - [ ] Navier-Stokes Equations:
 - [ ] ㄴ Grid-based Velocity Field
