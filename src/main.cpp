@@ -790,23 +790,33 @@ private:
 
         // Initialize particles
         std::default_random_engine rndEngine((unsigned)time(nullptr));
-        std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
+        std::uniform_real_distribution<float> rndDist(-1.0f, 1.0f);
+        std::uniform_real_distribution<float> velocityDist(-0.5f, 0.5f);  // Random velocity range
 
-        // Initial particle positions on a circle
+        // Initialize particle positions across the screen
         std::vector<Particle> particles(PARTICLE_COUNT);
-        for (auto& particle : particles) {
-            float r = 0.25f * sqrt(rndDist(rndEngine));
-            float theta = rndDist(rndEngine) * 2.0f * 3.14159265358979323846f;
-            float x = r * cos(theta) * HEIGHT / WIDTH;
-            float y = r * sin(theta);
-            particle.position = glm::vec2(x, y);
-            particle.velocity = glm::normalize(glm::vec2(x,y)) * 0.00025f;
-            particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
+        
+        for (size_t i = 0; i < PARTICLE_COUNT; ++i) {
+            // Random x and y positions across the screen space [-1.0, 1.0]
+            float x = rndDist(rndEngine) * 2.0f - 1.0f;  // Random value between -1.0 and 1.0
+            float y = rndDist(rndEngine) * 2.0f - 1.0f;  // Random value between -1.0 and 1.0
+            
+            // Set particle position
+            particles[i].position = glm::vec2(x, y);
+            
+            // Assign a small random velocity in both x and y directions
+            float vx = velocityDist(rndEngine);  // Random velocity between -0.0005 and 0.0005
+            float vy = velocityDist(rndEngine);  // Random velocity between -0.0005 and 0.0005
+            
+            particles[i].velocity = glm::vec2(vx, vy);
+            
+            // Assign a random color to each particle
+            particles[i].color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
         }
 
         VkDeviceSize bufferSize = sizeof(Particle) * PARTICLE_COUNT;
 
-        // Create a staging buffer used to upload data to the gpu
+        // Create a staging buffer used to upload data to the GPU
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingBufferMemory;
         createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
@@ -827,8 +837,9 @@ private:
 
         vkDestroyBuffer(device, stagingBuffer, nullptr);
         vkFreeMemory(device, stagingBufferMemory, nullptr);
-
     }
+
+
 
     void createUniformBuffers() {
         VkDeviceSize bufferSize = sizeof(UniformBufferObject);
