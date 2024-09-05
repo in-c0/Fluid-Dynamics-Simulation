@@ -2,7 +2,15 @@
 GPU-sided fluid dynamics simulation, with C++, Vulkan
 Solving the Navier-Stokes Equations for Incompressible Flow
 
+
+![FluidDynamicsSimulation_XrIAYd1XXk](https://github.com/user-attachments/assets/45049b6a-9c97-4af6-a54c-09fa668579f8)
  
+
+![ApplicationFrameHost_EiHX0sAGIq](https://github.com/user-attachments/assets/6e2471a6-370c-422e-9036-6e9cd9b6b8f9)
+
+
+
+
  # Inspiration / Reference
 - https://www.youtube.com/watch?v=4b80sR-joNY
 - https://developer.nvidia.com/gpugems/gpugems/part-vi-beyond-triangles/chapter-38-fast-fluid-dynamics-simulation-gpu
