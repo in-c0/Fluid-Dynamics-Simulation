@@ -7,6 +7,7 @@ Solving the Navier-Stokes Equations for Incompressible Flow
  
 
  # Inspiration / Reference
+- https://youtu.be/XmzBREkK8kY
 - https://www.youtube.com/watch?v=4b80sR-joNY
 - https://developer.nvidia.com/gpugems/gpugems/part-vi-beyond-triangles/chapter-38-fast-fluid-dynamics-simulation-gpu
 - https://github.com/napframework/nap/tree/main/system_modules/naprender
