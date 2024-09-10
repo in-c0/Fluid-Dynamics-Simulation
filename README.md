@@ -28,12 +28,14 @@ cd three-body-simulation
 The following dependencies are already included in the `third_party` directory: 
 - **GLFW**
 - **GLM**
+- **Dear ImGUI*
 
 If you have trouble connecting to the submodules, you can manually set up the dependencies:
 
 ```
 git submodule add https://github.com/glfw/glfw.git third_party/glfw
 git submodule add https://github.com/g-truc/glm.git third_party/glm
+git submodule add https://github.com/ocornut/imgui.git third_party/imgui
 git submodule update --init --recursive
 ```
 
@@ -147,6 +149,9 @@ How it builds up from the provided compute shader is as follows: (implemented fe
 **Optional:**
 - [x] Boundary collisions
 - [ ] Event handling (mouse, keyboard inputs)
+- [ ] Modes:
+- [ ] ㄴ Fractal patterns (Mandelbrot)
+- [ ] GUI for dynamic input / user settings (Dear ImGUI)
 
 **In radar:**
 - [ ] Workgroups for parallel processing
