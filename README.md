@@ -6,6 +6,10 @@ Solving the Navier-Stokes Equations for Incompressible Flow
 ![FluidDynamicsSimulation_XrIAYd1XXk](https://github.com/user-attachments/assets/45049b6a-9c97-4af6-a54c-09fa668579f8)
  
 
+https://github.com/user-attachments/assets/38ce9239-f8ac-43ae-98b4-1470b74f8598
+
+
+
  # Inspiration / Reference
 - https://youtu.be/XmzBREkK8kY
 - https://www.youtube.com/watch?v=4b80sR-joNY
@@ -138,12 +142,12 @@ How it builds up from the provided compute shader is as follows: (implemented fe
 - [x] Basic Shader setup (vert, frag, compute)
 - [x] Basic Render Loop and frame synchronization (semaphores, fences)
 - [x] Basic Gravity (downward push constant uniform layout)
-- [ ] Navier-Stokes Equations:
+- [x] Navier-Stokes Equations:
 - [ ] ㄴ Grid-based Velocity Field
 - [ ] ㄴ Advection
-- [ ] ㄴ Diffusion
-- [ ] ㄴ Pressure calculation (enforcing incompressibility)
-- [ ] ㄴ Projection step
+- [x] ㄴ Diffusion
+- [x] ㄴ Pressure calculation (enforcing incompressibility)
+- [x] ㄴ Projection step
 
 
 **Optional:**
