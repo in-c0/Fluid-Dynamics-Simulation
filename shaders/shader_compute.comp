@@ -27,7 +27,10 @@ const float MASS = 0.00000002;
 const float PI = 3.14159265358979323846;
 
 // Viscosity constants
-const float VISCOSITY = 250.0;
+const float VISCOSITY = 0.0250;
+
+// Pressure projection constants
+const int ITERATIONS = 5;
 
 // Pressure computation
 float poly6(float r2) {
@@ -106,5 +109,34 @@ void main()
         particle.position.y = clamp(particle.position.y, -1.0, 1.0);
     }
 
+    // Pressure Projection for Incompressibility
+    // Iterative solver (Gauss-Seidel)
+    for(int iter = 0; iter < ITERATIONS; iter++) {
+        float proj_pressure = 0.0;
+        float proj_divergence = 0.0;
+        // Compute divergence
+        for(uint i = 0; i < particlesIn.length(); ++i) {
+            if(i == index) continue;
+            vec2 r = particlesIn[i].position - particle.position;
+            float r_len = length(r);
+            if(r_len < H && r_len > 0.0){
+                proj_divergence += dot(particlesIn[i].velocity - particle.velocity, spikyGradient(r));
+            }
+        }
+        proj_pressure = proj_divergence / (REST_DENSITY * ITERATIONS);
+
+        // Correct velocities
+        for(uint i = 0; i < particlesIn.length(); ++i) {
+            if(i == index) continue;
+            vec2 r = particlesIn[i].position - particle.position;
+            float r_len = length(r);
+            if(r_len < H && r_len > 0.0){
+                float p = proj_pressure;
+                particle.velocity += spikyGradient(r) * (p / REST_DENSITY);
+            }
+        }
+    }
+
+    // Write the updated particle to the output buffer
     particlesOut[index] = particle;
 }
