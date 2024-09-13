@@ -1,53 +1,67 @@
 #version 450
 
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+// Structure matching the Particle struct in C++
 struct Particle {
-	vec2 position;
-	vec2 velocity;
+    vec2 position;
+    vec2 velocity;
     vec4 color;
 };
 
-layout (binding = 0) uniform ParameterUBO {
+// Binding locations
+layout(binding = 0) uniform UniformBufferObject {
     float deltaTime;
 } ubo;
 
-layout(std140, binding = 1) readonly buffer ParticleSSBOIn {
-   Particle particlesIn[ ];
+layout(binding = 1) buffer ParticleBufferIn {
+    Particle particlesIn[];
 };
 
-layout(std140, binding = 2) buffer ParticleSSBOOut {
-   Particle particlesOut[ ];
+layout(binding = 2) buffer ParticleBufferOut {
+    Particle particlesOut[];
 };
 
-layout(push_constant) uniform PushConstants {
-    vec2 gravity;  // Gravity vector (e.g., vec2(0.0, 9.8)  vulkan has flipped y axis)
-} pc;
+// Maze-like structures
+// For simplicity, let's assume maze walls are axis-aligned rectangles
+struct Wall {
+    vec2 min;
+    vec2 max;
+};
 
-layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+layout(binding = 3) buffer WallBuffer {
+    Wall walls[];
+};
 
-void main() 
-{
-    uint index = gl_GlobalInvocationID.x;  
+// Additional uniform for wall count
+layout(binding = 4) uniform WallCountBuffer {
+    uint wallCount;
+} wallCountBuffer;
 
-    Particle particleIn = particlesIn[index];
-    Particle particleOut;
+// Constants
+const vec2 gravity = vec2(0.0f, 0.000098f); // Gravity acceleration
 
-    particleOut.velocity = particleIn.velocity + pc.gravity * ubo.deltaTime;
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    Particle p = particlesIn[idx];
 
-    particleOut.position = particleIn.position + particleOut.velocity * ubo.deltaTime;
+    // Apply gravity
+    p.velocity += gravity * ubo.deltaTime;
 
-    // Handle bouncing off the window borders
-    // if ((particleOut.position.x <= -1.0) || (particleOut.position.x >= 1.0)) {
-    //     particleOut.velocity.x = -particleOut.velocity.x;
-    //     particleOut.position.x = clamp(particleOut.position.x, -1.0, 1.0);
-    // }
-    // if ((particleOut.position.y <= -1.0) || (particleOut.position.y >= 1.0)) {
-    //     particleOut.velocity.y = -particleOut.velocity.y;
-    //     particleOut.position.y = clamp(particleOut.position.y, -1.0, 1.0);
-    // }
+    // Update position
+    p.position += p.velocity * ubo.deltaTime;
 
-    // Copy color and write the updated particle to the output buffer
-    particleOut.color = particleIn.color;
-    
-    // Apply changes
-    particlesOut[index] = particleOut;
+    // Collision detection with walls
+    for (uint i = 0; i < wallCountBuffer.wallCount; ++i) {
+        Wall w = walls[i];
+        if (p.position.x >= w.min.x && p.position.x <= w.max.x &&
+            p.position.y <= w.min.y && p.position.y >= w.max.y) {
+            // Simple collision response: stop the particle
+            p.velocity = vec2(0.0f, 0.0f);
+            // Clamp position to the wall boundary
+            p.position.y = w.max.y;
+        }
+    }
+
+    particlesOut[idx] = p;
 }
