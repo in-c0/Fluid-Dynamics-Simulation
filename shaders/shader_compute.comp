@@ -1,8 +1,8 @@
 #version 450
 
 struct Particle {
-	vec2 position;
-	vec2 velocity;
+    vec2 position;
+    vec2 velocity;
     vec4 color;
 };
 
@@ -11,15 +11,37 @@ layout (binding = 0) uniform ParameterUBO {
 } ubo;
 
 layout(std140, binding = 1) readonly buffer ParticleSSBOIn {
-   Particle particlesIn[ ];
+   Particle particlesIn[];
 };
 
 layout(std140, binding = 2) buffer ParticleSSBOOut {
-   Particle particlesOut[ ];
+   Particle particlesOut[];
 };
 
+// Constants for SPH
+const float REST_DENSITY = 0.0000010;
+const float GAS_CONSTANT = 0.0000020;
+const float H = 0.0000000045; // Smoothing length
+const float HSQ = H * H;
+const float MASS = 0.00000002;
+const float PI = 3.14159265358979323846;
+
+// Pressure computation kernel
+float poly6(float r2) {
+    if (r2 >= HSQ) return 0.0;
+    float term = HSQ - r2;
+    return 315.0 / (64.0 * PI * pow(H, 9)) * term * term * term;
+}
+
+vec2 spikyGradient(vec2 r) {
+    float r_len = length(r);
+    if (r_len == 0.0 || r_len >= H) return vec2(0.0);
+    float term = (H - r_len) * (H - r_len);
+    return -r / r_len * 45.0 / (PI * pow(H, 6)) * term;
+}
+
 layout(push_constant) uniform PushConstants {
-    vec2 gravity;  // Gravity vector (e.g., vec2(0.0, 9.8)  vulkan has flipped y axis)
+    vec2 gravity;  // Gravity vector (e.g., vec2(0.0, -9.8))
 } pc;
 
 layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
@@ -27,27 +49,51 @@ layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 void main() 
 {
     uint index = gl_GlobalInvocationID.x;  
+    Particle particle = particlesIn[index];
+    
+    // Compute density
+    float density = 0.0;
+    for(uint i = 0; i < particlesIn.length(); ++i) {
+        vec2 r = particlesIn[i].position - particle.position;
+        float r2 = dot(r, r);
+        density += MASS * poly6(r2);
+    }
 
-    Particle particleIn = particlesIn[index];
-    Particle particleOut;
+    // Compute pressure
+    float pressure = GAS_CONSTANT * (density - REST_DENSITY);
 
-    particleOut.velocity = particleIn.velocity + pc.gravity * ubo.deltaTime;
+    // Compute pressure force
+    vec2 pressureForce = vec2(0.0);
+    for(uint i = 0; i < particlesIn.length(); ++i) {
+        if(i == index) continue;
+        vec2 r = particlesIn[i].position - particle.position;
+        float r_len = length(r);
+        if(r_len < H && r_len > 0.0){
+            // Simplified: Assuming density_j = density (could be improved)
+            float pressure_j = GAS_CONSTANT * (density - REST_DENSITY);
+            pressureForce += -r / r_len * MASS * (pressure + pressure_j) / (2.0 * density) * spikyGradient(r).x;
+        }
+    }
 
-    particleOut.position = particleIn.position + particleOut.velocity * ubo.deltaTime;
+    // Update velocity with pressure force
+    particle.velocity += pressureForce / density * ubo.deltaTime;
+
+    // Update position with new velocity
+    particle.position += particle.velocity * ubo.deltaTime;
 
     // Handle bouncing off the window borders
-    if ((particleOut.position.x <= -1.0) || (particleOut.position.x >= 1.0)) {
-        particleOut.velocity.x = -particleOut.velocity.x;
-        particleOut.position.x = clamp(particleOut.position.x, -1.0, 1.0);
+    if ((particle.position.x <= -1.0) || (particle.position.x >= 1.0)) {
+        particle.velocity.x = -particle.velocity.x;
+        particle.position.x = clamp(particle.position.x, -1.0, 1.0);
     }
-    if ((particleOut.position.y <= -1.0) || (particleOut.position.y >= 1.0)) {
-        particleOut.velocity.y = -particleOut.velocity.y;
-        particleOut.position.y = clamp(particleOut.position.y, -1.0, 1.0);
+    if ((particle.position.y <= -1.0) || (particle.position.y >= 1.0)) {
+        particle.velocity.y = -particle.velocity.y;
+        particle.position.y = clamp(particle.position.y, -1.0, 1.0);
     }
 
     // Copy color and write the updated particle to the output buffer
-    particleOut.color = particleIn.color;
+    particle.color = particle.color; // No change to color in this step
     
     // Apply changes
-    particlesOut[index] = particleOut;
+    particlesOut[index] = particle;
 }
