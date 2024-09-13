@@ -798,8 +798,8 @@ private:
         
         for (size_t i = 0; i < PARTICLE_COUNT; ++i) {
             // Random x and y positions across the screen space [-1.0, 1.0]
-            float x = rndDist(rndEngine) * 2.0f - 1.0f;  // Random value between -1.0 and 1.0
-            float y = rndDist(rndEngine) * 2.0f - 1.0f;  // Random value between -1.0 and 1.0
+            float x = rndDist(rndEngine);
+            float y = rndDist(rndEngine);
             
             // Set particle position
             particles[i].position = glm::vec2(x, y);

@@ -36,14 +36,14 @@ void main()
     particleOut.position = particleIn.position + particleOut.velocity * ubo.deltaTime;
 
     // Handle bouncing off the window borders
-    // if ((particleOut.position.x <= -1.0) || (particleOut.position.x >= 1.0)) {
-    //     particleOut.velocity.x = -particleOut.velocity.x;
-    //     particleOut.position.x = clamp(particleOut.position.x, -1.0, 1.0);
-    // }
-    // if ((particleOut.position.y <= -1.0) || (particleOut.position.y >= 1.0)) {
-    //     particleOut.velocity.y = -particleOut.velocity.y;
-    //     particleOut.position.y = clamp(particleOut.position.y, -1.0, 1.0);
-    // }
+    if ((particleOut.position.x <= -1.0) || (particleOut.position.x >= 1.0)) {
+        particleOut.velocity.x = -particleOut.velocity.x;
+        particleOut.position.x = clamp(particleOut.position.x, -1.0, 1.0);
+    }
+    if ((particleOut.position.y <= -1.0) || (particleOut.position.y >= 1.0)) {
+        particleOut.velocity.y = -particleOut.velocity.y;
+        particleOut.position.y = clamp(particleOut.position.y, -1.0, 1.0);
+    }
 
     // Copy color and write the updated particle to the output buffer
     particleOut.color = particleIn.color;
