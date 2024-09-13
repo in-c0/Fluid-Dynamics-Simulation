@@ -26,7 +26,10 @@ const float HSQ = H * H;
 const float MASS = 0.00000002;
 const float PI = 3.14159265358979323846;
 
-// Pressure computation kernel
+// Viscosity constants
+const float VISCOSITY = 250.0;
+
+// Pressure computation
 float poly6(float r2) {
     if (r2 >= HSQ) return 0.0;
     float term = HSQ - r2;
@@ -40,8 +43,13 @@ vec2 spikyGradient(vec2 r) {
     return -r / r_len * 45.0 / (PI * pow(H, 6)) * term;
 }
 
+float viscosityLaplacian(float r2) {
+    if (r2 >= HSQ) return 0.0;
+    return 45.0 / (PI * pow(H, 6)) * (H - sqrt(r2));
+}
+
 layout(push_constant) uniform PushConstants {
-    vec2 gravity;  // Gravity vector (e.g., vec2(0.0, -9.8))
+    vec2 gravity;  // Gravity vector
 } pc;
 
 layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
@@ -64,19 +72,26 @@ void main()
 
     // Compute pressure force
     vec2 pressureForce = vec2(0.0);
+    // Compute viscosity force
+    vec2 viscosityForce = vec2(0.0);
     for(uint i = 0; i < particlesIn.length(); ++i) {
         if(i == index) continue;
         vec2 r = particlesIn[i].position - particle.position;
         float r_len = length(r);
         if(r_len < H && r_len > 0.0){
-            // Simplified: Assuming density_j = density (could be improved)
-            float pressure_j = GAS_CONSTANT * (density - REST_DENSITY);
+            // Pressure force contribution
+            float density_j = REST_DENSITY; // Simplified density
+            float pressure_j = GAS_CONSTANT * (density - REST_DENSITY); // Simplified
             pressureForce += -r / r_len * MASS * (pressure + pressure_j) / (2.0 * density) * spikyGradient(r).x;
+
+            // Viscosity force contribution
+            vec2 vel_diff = particlesIn[i].velocity - particle.velocity;
+            viscosityForce += VISCOSITY * MASS * (vel_diff) / density * viscosityLaplacian(dot(r, r));
         }
     }
 
-    // Update velocity with pressure force
-    particle.velocity += pressureForce / density * ubo.deltaTime;
+    // Update velocity with pressure and viscosity forces
+    particle.velocity += (pressureForce + viscosityForce) / density * ubo.deltaTime;
 
     // Update position with new velocity
     particle.position += particle.velocity * ubo.deltaTime;
@@ -91,9 +106,5 @@ void main()
         particle.position.y = clamp(particle.position.y, -1.0, 1.0);
     }
 
-    // Copy color and write the updated particle to the output buffer
-    particle.color = particle.color; // No change to color in this step
-    
-    // Apply changes
     particlesOut[index] = particle;
 }
