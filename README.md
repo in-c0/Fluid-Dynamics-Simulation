@@ -1,6 +1,8 @@
 # Fluid-Dynamics-Simulation
 GPU-sided fluid dynamics simulation, with C++, Vulkan
-Solving the Navier-Stokes Equations for Incompressible Flow
+
+
+Smoothed-particle hydrodynamics (SPH) approach based on Navier-Stokes equations for incompressible flow
 
 
 ![FluidDynamicsSimulation_XrIAYd1XXk](https://github.com/user-attachments/assets/45049b6a-9c97-4af6-a54c-09fa668579f8)
@@ -14,6 +16,7 @@ https://github.com/user-attachments/assets/38ce9239-f8ac-43ae-98b4-1470b74f8598
 - https://youtu.be/XmzBREkK8kY
 - https://www.youtube.com/watch?v=4b80sR-joNY
 - https://developer.nvidia.com/gpugems/gpugems/part-vi-beyond-triangles/chapter-38-fast-fluid-dynamics-simulation-gpu
+- https://en.wikipedia.org/wiki/Smoothed-particle_hydrodynamics
 - https://github.com/napframework/nap/tree/main/system_modules/naprender
 - https://github.com/mmaldacker/Vortex2D/tree/master
 
@@ -142,25 +145,24 @@ How it builds up from the provided compute shader is as follows: (implemented fe
 - [x] Basic Shader setup (vert, frag, compute)
 - [x] Basic Render Loop and frame synchronization (semaphores, fences)
 - [x] Basic Gravity (downward push constant uniform layout)
-- [x] Navier-Stokes Equations:
-- [ ] ㄴ Grid-based Velocity Field
-- [ ] ㄴ Advection
+- [x] Smoothed-particle hydrodynamics (Navier-Stokes):
+- [x] ㄴ Grid-based Velocity Field
+- [x] ㄴ Advection
 - [x] ㄴ Diffusion
 - [x] ㄴ Pressure calculation (enforcing incompressibility)
 - [x] ㄴ Projection step
+- [x] ㄴ Ping-pong buffering to avoid readwrite conflict
+- [x] ㄴ Trilinear interpolation for advection accuracy
 
 
 **Optional:**
 - [x] Boundary collisions
 - [ ] Event handling (mouse, keyboard inputs)
-- [ ] Modes:
-- [ ] ㄴ Fractal patterns (Mandelbrot)
 - [ ] GUI for dynamic input / user settings (Dear ImGUI)
 
 **In radar:**
 - [ ] Workgroups for parallel processing
 - [ ] Memory barriers
-- [ ] Bilinear interpolation for advection accuracy
 
 
 
