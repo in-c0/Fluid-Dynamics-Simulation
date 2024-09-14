@@ -1,6 +1,3 @@
-// Sample by Sascha Willems
-// Contact: webmaster@saschawillems.de
-
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -81,7 +78,7 @@ struct SwapChainSupportDetails {
 };
 
 struct UniformBufferObject {
-    float deltaTime = 100.0f;
+    float deltaTime = 1.0f;
 };
 
 struct Particle {
@@ -130,6 +127,8 @@ private:
     VkInstance instance;
     VkDebugUtilsMessengerEXT debugMessenger;
     VkSurfaceKHR surface;
+    
+    UniformBufferObject ubo{};
 
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkDevice device;
@@ -192,6 +191,13 @@ private:
     VkDescriptorSetLayout boundaryDescriptorSetLayout;
     VkDescriptorSet boundaryDescriptorSet;
     VkShaderModule boundaryShaderModule;
+
+    VkDescriptorSetLayout advectionDescriptorSetLayout;
+    VkPipelineLayout advectionPipelineLayout;
+    VkPipeline advectionPipeline;
+    VkDescriptorSet advectionDescriptorSet;
+    VkCommandBuffer advectionCommandBuffer;
+    VkDescriptorPool advectionDescriptorPool;
 
     void initWindow() {
         glfwInit();
@@ -374,6 +380,234 @@ private:
         vkFreeMemory(device, stagingBufferMemory, nullptr);
     }
 
+
+    void createAdvectionDescriptorPool() {
+        VkDescriptorPoolSize poolSize{};
+        poolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        poolSize.descriptorCount = 4;  // 4 bindings
+
+        VkDescriptorPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.poolSizeCount = 1;
+        poolInfo.pPoolSizes = &poolSize;
+        poolInfo.maxSets = 1;
+
+        if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &advectionDescriptorPool) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create advection descriptor pool!");
+        }
+    }
+
+    // Function to create Advection Descriptor Set Layout
+    void createAdvectionDescriptorSetLayout() {
+        std::array<VkDescriptorSetLayoutBinding, 4> bindings{};
+        
+        // Binding 0: Velocity In (Storage Buffer)
+        bindings[0].binding = 0;
+        bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        bindings[0].descriptorCount = 1;
+        bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        bindings[0].pImmutableSamplers = nullptr;
+        
+        // Binding 1: Velocity Out (Storage Buffer)
+        bindings[1].binding = 1;
+        bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        bindings[1].descriptorCount = 1;
+        bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        bindings[1].pImmutableSamplers = nullptr;
+        
+        // Binding 2: Pressure In (Storage Buffer)
+        bindings[2].binding = 2;
+        bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        bindings[2].descriptorCount = 1;
+        bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        bindings[2].pImmutableSamplers = nullptr;
+        
+        // Binding 3: Pressure Out (Storage Buffer)
+        bindings[3].binding = 3;
+        bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        bindings[3].descriptorCount = 1;
+        bindings[3].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        bindings[3].pImmutableSamplers = nullptr;
+        
+        VkDescriptorSetLayoutCreateInfo layoutInfo{};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+        layoutInfo.pBindings = bindings.data();
+        
+        if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &advectionDescriptorSetLayout) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create advection descriptor set layout!");
+        }
+    }
+
+    // Function to create Advection Pipeline
+    void createAdvectionPipeline() {
+        auto advectionShaderCode = readFile("../../shaders/advection.spv");
+        VkShaderModule advectionShaderModule = createShaderModule(advectionShaderCode);
+        
+        VkPipelineShaderStageCreateInfo shaderStageInfo{};
+        shaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        shaderStageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+        shaderStageInfo.module = advectionShaderModule;
+        shaderStageInfo.pName = "main";
+        
+        // Pipeline Layout
+        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutInfo.setLayoutCount = 1;
+        pipelineLayoutInfo.pSetLayouts = &advectionDescriptorSetLayout;
+        
+        // Push Constants
+        VkPushConstantRange pushConstantRange{};
+        pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        pushConstantRange.offset = 0;
+        pushConstantRange.size = sizeof(uint32_t) * 5; // NX, NY, NZ, CELL_SIZE, UBO
+        pipelineLayoutInfo.pushConstantRangeCount = 1;
+        pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+        
+        if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &advectionPipelineLayout) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create advection pipeline layout!");
+        }
+        
+        // Compute Pipeline
+        VkComputePipelineCreateInfo pipelineInfo{};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        pipelineInfo.stage = shaderStageInfo;
+        pipelineInfo.layout = advectionPipelineLayout;
+        
+        if (vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &advectionPipeline) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create advection compute pipeline!");
+        }
+        
+        vkDestroyShaderModule(device, advectionShaderModule, nullptr);
+    }
+
+    // Function to create Advection Descriptor Sets
+    void createAdvectionDescriptorSets() {
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = descriptorPool; // Reuse existing descriptor pool
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &advectionDescriptorSetLayout;
+        
+        if (vkAllocateDescriptorSets(device, &allocInfo, &advectionDescriptorSet) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate advection descriptor set!");
+        }
+        
+        VkDescriptorBufferInfo velInBufferInfo{};
+        velInBufferInfo.buffer = velocityBuffer;
+        velInBufferInfo.offset = 0;
+        velInBufferInfo.range = VK_WHOLE_SIZE;
+        
+        VkDescriptorBufferInfo velOutBufferInfo{};
+        velOutBufferInfo.buffer = velocityBuffer; // Reusing the same buffer for simplicity (ping-pong)
+        velOutBufferInfo.offset = 0;
+        velOutBufferInfo.range = VK_WHOLE_SIZE;
+        
+        VkDescriptorBufferInfo presInBufferInfo{};
+        presInBufferInfo.buffer = pressureBuffer;
+        presInBufferInfo.offset = 0;
+        presInBufferInfo.range = VK_WHOLE_SIZE;
+        
+        VkDescriptorBufferInfo presOutBufferInfo{};
+        presOutBufferInfo.buffer = pressureBuffer; // Reusing the same buffer for simplicity (ping-pong)
+        presOutBufferInfo.offset = 0;
+        presOutBufferInfo.range = VK_WHOLE_SIZE;
+        
+        std::array<VkWriteDescriptorSet, 4> descriptorWrites{};
+        
+        // Binding 0: Velocity In
+        descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[0].dstSet = advectionDescriptorSet;
+        descriptorWrites[0].dstBinding = 0;
+        descriptorWrites[0].dstArrayElement = 0;
+        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorWrites[0].descriptorCount = 1;
+        descriptorWrites[0].pBufferInfo = &velInBufferInfo;
+        
+        // Binding 1: Velocity Out
+        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[1].dstSet = advectionDescriptorSet;
+        descriptorWrites[1].dstBinding = 1;
+        descriptorWrites[1].dstArrayElement = 0;
+        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorWrites[1].descriptorCount = 1;
+        descriptorWrites[1].pBufferInfo = &velOutBufferInfo;
+        
+        // Binding 2: Pressure In
+        descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[2].dstSet = advectionDescriptorSet;
+        descriptorWrites[2].dstBinding = 2;
+        descriptorWrites[2].dstArrayElement = 0;
+        descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorWrites[2].descriptorCount = 1;
+        descriptorWrites[2].pBufferInfo = &presInBufferInfo;
+        
+        // Binding 3: Pressure Out
+        descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[3].dstSet = advectionDescriptorSet;
+        descriptorWrites[3].dstBinding = 3;
+        descriptorWrites[3].dstArrayElement = 0;
+        descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorWrites[3].descriptorCount = 1;
+        descriptorWrites[3].pBufferInfo = &presOutBufferInfo;
+        
+        vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+    }
+
+    // Function to record Advection Command Buffer
+    void recordAdvectionCommandBuffer() {
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.commandPool = commandPool;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandBufferCount = 1;
+        
+        VkCommandBuffer cmdBuffer;
+        vkAllocateCommandBuffers(device, &allocInfo, &cmdBuffer);
+        
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        
+        vkBeginCommandBuffer(cmdBuffer, &beginInfo);
+        
+        vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, advectionPipeline);
+        vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, advectionPipelineLayout, 0, 1, &advectionDescriptorSet, 0, nullptr);
+        
+        // Push Constants: NX, NY, NZ, CELL_SIZE, UBO
+        uint32_t pushConstants[5] = { NX, NY, NZ, *(uint32_t*)&CELL_SIZE, *(uint32_t*)&ubo };
+        vkCmdPushConstants(cmdBuffer, advectionPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pushConstants), pushConstants);
+        
+        // Dispatch compute shader
+        uint32_t groupX = (NX + 15) / 16;
+        uint32_t groupY = (NY + 15) / 16;
+        uint32_t groupZ = (NZ + 15) / 16;
+        vkCmdDispatch(cmdBuffer, groupX, groupY, groupZ);
+        
+        vkEndCommandBuffer(cmdBuffer);
+        
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &cmdBuffer;
+        
+        VkFence fence;
+        VkFenceCreateInfo fenceInfo{};
+        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceInfo.flags = 0;
+        vkCreateFence(device, &fenceInfo, nullptr, &fence);
+        
+        if (vkQueueSubmit(computeQueue, 1, &submitInfo, fence) != VK_SUCCESS) {
+            throw std::runtime_error("failed to submit advection command buffer!");
+        }
+
+        vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+        
+        vkDestroyFence(device, fence, nullptr);
+        vkFreeCommandBuffers(device, commandPool, 1, &cmdBuffer);
+
+    }
+
     void initVulkan() {
         createInstance();
         setupDebugMessenger();
@@ -395,6 +629,9 @@ private:
         createCommandBuffers();
         createComputeCommandBuffers();
         initSimulationGrid();
+        createAdvectionDescriptorSetLayout();
+        createAdvectionPipeline(); 
+        createAdvectionDescriptorSets(); 
         createSyncObjects();
     }
 
@@ -1038,18 +1275,21 @@ private:
     }
 
     void createDescriptorPool() {
-        std::array<VkDescriptorPoolSize, 2> poolSizes{};
+        std::array<VkDescriptorPoolSize, 3> poolSizes{};
         poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
         
         poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 2;
 
+        poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        poolSizes[2].descriptorCount = 4;
+
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        poolInfo.poolSizeCount = 2;
+        poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
         poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT + 1);
+        poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT + 2);
 
         if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create descriptor pool!");
@@ -1323,7 +1563,6 @@ private:
 
     void updateUniformBuffer(uint32_t currentImage) {
         double currentTime = glfwGetTime();
-        UniformBufferObject ubo{};
         ubo.deltaTime = static_cast<float>(currentTime - lastFrameTime);  // Calculate time since last frame
         lastFrameTime = currentTime;
 
@@ -1353,6 +1592,9 @@ private:
         if (vkQueueSubmit(computeQueue, 1, &submitInfo, computeInFlightFences[currentFrame]) != VK_SUCCESS) {
             throw std::runtime_error("failed to submit compute command buffer!");
         };
+
+        // Record and submit advection command buffer
+        recordAdvectionCommandBuffer();
 
         // Graphics submission
         vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);

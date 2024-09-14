@@ -1,0 +1,108 @@
+// advection.comp
+#version 450
+
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+
+// Buffers
+layout(binding = 0) buffer VelocityInBuffer {
+    vec3 velocityIn[];
+} velIn;
+
+layout(binding = 1) buffer VelocityOutBuffer {
+    vec3 velocityOut[];
+} velOut;
+
+layout(binding = 2) buffer PressureInBuffer {
+    float pressureIn[];
+} presIn;
+
+layout(binding = 3) buffer PressureOutBuffer {
+    float pressureOut[];
+} presOut;
+
+// Grid dimensions (passed as push constants or uniforms)
+layout(push_constant) uniform PushConstants {
+    uint NX;
+    uint NY;
+    uint NZ;
+    float CELL_SIZE;
+    float deltaTime;
+} pc;
+
+// Function to compute the linear index
+uint getIndex(uint x, uint y, uint z) {
+    return x + y * pc.NX + z * pc.NX * pc.NY;
+}
+
+// Bilinear interpolation function
+vec3 sampleVelocity(vec3 pos) {
+    // Convert position to grid coordinates
+    float gx = pos.x / pc.CELL_SIZE;
+    float gy = pos.y / pc.CELL_SIZE;
+    float gz = pos.z / pc.CELL_SIZE;
+    
+    uint x0 = uint(floor(gx));
+    uint y0 = uint(floor(gy));
+    uint z0 = uint(floor(gz));
+    
+    float dx = gx - float(x0);
+    float dy = gy - float(y0);
+    float dz = gz - float(z0);
+    
+    // Clamp to grid bounds
+    x0 = clamp(x0, 0u, pc.NX - 2);
+    y0 = clamp(y0, 0u, pc.NY - 2);
+    z0 = clamp(z0, 0u, pc.NZ - 2);
+    
+    uint x1 = x0 + 1;
+    uint y1 = y0 + 1;
+    uint z1 = z0 + 1;
+    
+    // Fetch velocities at the surrounding grid points
+    vec3 v000 = velIn.velocityIn[getIndex(x0, y0, z0)];
+    vec3 v100 = velIn.velocityIn[getIndex(x1, y0, z0)];
+    vec3 v010 = velIn.velocityIn[getIndex(x0, y1, z0)];
+    vec3 v110 = velIn.velocityIn[getIndex(x1, y1, z0)];
+    vec3 v001 = velIn.velocityIn[getIndex(x0, y0, z1)];
+    vec3 v101 = velIn.velocityIn[getIndex(x1, y0, z1)];
+    vec3 v011 = velIn.velocityIn[getIndex(x0, y1, z1)];
+    vec3 v111 = velIn.velocityIn[getIndex(x1, y1, z1)];
+    
+    // Trilinear interpolation
+    vec3 v00 = mix(v000, v100, dx);
+    vec3 v01 = mix(v001, v101, dx);
+    vec3 v10 = mix(v010, v110, dx);
+    vec3 v11 = mix(v011, v111, dx);
+    
+    vec3 v0 = mix(v00, v10, dy);
+    vec3 v1 = mix(v01, v11, dy);
+    
+    return mix(v0, v1, dz);
+}
+
+void main() {
+    uint x = gl_GlobalInvocationID.x;
+    uint y = gl_GlobalInvocationID.y;
+    uint z = gl_GlobalInvocationID.z;
+    
+    if(x >= pc.NX || y >= pc.NY || z >= pc.NZ) return;
+    
+    uint idx = getIndex(x, y, z);
+    
+    // Current grid cell position
+    vec3 pos = vec3(x, y, z) * pc.CELL_SIZE;
+    
+    // Backtrace to find the source position
+    vec3 velocity = velIn.velocityIn[idx];
+    vec3 srcPos = pos - velocity * pc.deltaTime;
+    
+    // Sample the velocity at the source position
+    vec3 advectedVelocity = sampleVelocity(srcPos);
+    velOut.velocityOut[idx] = advectedVelocity;
+    
+    // Similarly, advect pressure
+    float pressure = presIn.pressureIn[idx];
+    // Implement pressure advection if needed
+    presOut.pressureOut[idx] = pressure; // Placeholder
+}
