@@ -26,7 +26,12 @@
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-const uint32_t PARTICLE_COUNT = 2000;
+const uint32_t NX = 128; // Grid size in X
+const uint32_t NY = 128; // Grid size in Y
+const uint32_t NZ = 128; // Grid size in Z
+const float CELL_SIZE = 0.01f; // Size of each grid cell
+
+const uint32_t PARTICLE_COUNT = 1024;
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -76,7 +81,7 @@ struct SwapChainSupportDetails {
 };
 
 struct UniformBufferObject {
-    float deltaTime = 1.0f;
+    float deltaTime = 100.0f;
 };
 
 struct Particle {
@@ -176,6 +181,12 @@ private:
 
     double lastTime = 0.0f;
 
+    VkBuffer velocityBuffer;
+    VkDeviceMemory velocityBufferMemory;
+
+    VkBuffer pressureBuffer;
+    VkDeviceMemory pressureBufferMemory;
+
     void initWindow() {
         glfwInit();
 
@@ -191,6 +202,57 @@ private:
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
         auto app = reinterpret_cast<FluidDynamicsSimulation*>(glfwGetWindowUserPointer(window));
         app->framebufferResized = true;
+    }
+
+
+    // Initialize the simulation grid
+    void initSimulationGrid() {
+        VkDeviceSize velocityBufferSize = sizeof(glm::vec3) * NX * NY * NZ;
+        VkDeviceSize pressureBufferSize = sizeof(float) * NX * NY * NZ;
+
+        // Create Velocity Buffer
+        createBuffer(velocityBufferSize,
+                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                     velocityBuffer,
+                     velocityBufferMemory);
+
+        // Create Pressure Buffer
+        createBuffer(pressureBufferSize,
+                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                     pressureBuffer,
+                     pressureBufferMemory);
+
+        // Initialize buffers to zero using a staging buffer
+        initializeBuffer(velocityBuffer, velocityBufferSize, glm::vec3(0.0f));
+        initializeBuffer(pressureBuffer, pressureBufferSize, 0.0f);
+    }
+
+    // Helper function to initialize buffers
+    template <typename T>
+    void initializeBuffer(VkBuffer buffer, VkDeviceSize size, T initialValue) {
+        // Create a staging buffer
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createBuffer(size,
+                     VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     stagingBuffer,
+                     stagingBufferMemory);
+
+        // Map and write initial data
+        void* data;
+        vkMapMemory(device, stagingBufferMemory, 0, size, 0, &data);
+        memset(data, 0, size); // Initialize to zero
+        vkUnmapMemory(device, stagingBufferMemory);
+
+        // Copy to device buffer
+        copyBuffer(stagingBuffer, buffer, size);
+
+        // Cleanup staging buffer
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingBufferMemory, nullptr);
     }
 
     void initVulkan() {
@@ -213,6 +275,7 @@ private:
         createComputeDescriptorSets();
         createCommandBuffers();
         createComputeCommandBuffers();
+        initSimulationGrid();
         createSyncObjects();
     }
 
