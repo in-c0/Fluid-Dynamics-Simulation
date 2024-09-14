@@ -180,8 +180,8 @@ private:
 
     double lastTime = 0.0f;
 
-    VkBuffer velocityBuffer;
-    VkDeviceMemory velocityBufferMemory;
+    VkBuffer velocityBufferA, velocityBufferB;
+    VkDeviceMemory velocityBufferMemoryA, velocityBufferMemoryB;
 
     VkBuffer pressureBuffer;
     VkDeviceMemory pressureBufferMemory;
@@ -224,10 +224,16 @@ private:
 
         // Create Velocity Buffer
         createBuffer(velocityBufferSize,
-                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                     velocityBuffer,
-                     velocityBufferMemory);
+                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                        velocityBufferA,
+                        velocityBufferMemoryA);
+
+        createBuffer(velocityBufferSize,
+                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                    velocityBufferB,
+                    velocityBufferMemoryB);
 
         // Create Pressure Buffer
         createBuffer(pressureBufferSize,
@@ -237,7 +243,8 @@ private:
                      pressureBufferMemory);
 
         // Initialize buffers to zero using a staging buffer
-        initializeBuffer(velocityBuffer, velocityBufferSize, glm::vec3(0.0f));
+        initializeBuffer(velocityBufferA, velocityBufferSize, glm::vec3(0.0f));
+        initializeBuffer(velocityBufferB, velocityBufferSize, glm::vec3(0.0f));
         initializeBuffer(pressureBuffer, pressureBufferSize, 0.0f);
 
         // Create Boundary Descriptor Set Layout
@@ -323,35 +330,38 @@ private:
             throw std::runtime_error("failed to allocate boundary descriptor set!");
         }
 
-        VkDescriptorBufferInfo velocityBufferInfo{};
-        velocityBufferInfo.buffer = velocityBuffer;
-        velocityBufferInfo.offset = 0;
-        velocityBufferInfo.range = VK_WHOLE_SIZE;
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            // Bind Velocity In and Out appropriately based on ping-pong
+            VkDescriptorBufferInfo velInBufferInfo{};
+            velInBufferInfo.buffer = (i % 2 == 0) ? velocityBufferA : velocityBufferB;
+            velInBufferInfo.offset = 0;
+            velInBufferInfo.range = VK_WHOLE_SIZE;
 
-        VkDescriptorBufferInfo pressureBufferInfo{};
-        pressureBufferInfo.buffer = pressureBuffer;
-        pressureBufferInfo.offset = 0;
-        pressureBufferInfo.range = VK_WHOLE_SIZE;
+            VkDescriptorBufferInfo pressureBufferInfo{};
+            pressureBufferInfo.buffer = pressureBuffer;
+            pressureBufferInfo.offset = 0;
+            pressureBufferInfo.range = VK_WHOLE_SIZE;
 
-        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+            std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 
-        descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[0].dstSet = boundaryDescriptorSet;
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &velocityBufferInfo;
+            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[0].dstSet = boundaryDescriptorSet;
+            descriptorWrites[0].dstBinding = 0;
+            descriptorWrites[0].dstArrayElement = 0;
+            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorWrites[0].descriptorCount = 1;
+            descriptorWrites[0].pBufferInfo = &velInBufferInfo;
 
-        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[1].dstSet = boundaryDescriptorSet;
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pBufferInfo = &pressureBufferInfo;
+            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[1].dstSet = boundaryDescriptorSet;
+            descriptorWrites[1].dstBinding = 1;
+            descriptorWrites[1].dstArrayElement = 0;
+            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorWrites[1].descriptorCount = 1;
+            descriptorWrites[1].pBufferInfo = &pressureBufferInfo;
 
-        vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+            vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+        }
     }
 
     // Helper function to initialize buffers
@@ -493,65 +503,41 @@ private:
             throw std::runtime_error("failed to allocate advection descriptor set!");
         }
         
-        VkDescriptorBufferInfo velInBufferInfo{};
-        velInBufferInfo.buffer = velocityBuffer;
-        velInBufferInfo.offset = 0;
-        velInBufferInfo.range = VK_WHOLE_SIZE;
-        
-        VkDescriptorBufferInfo velOutBufferInfo{};
-        velOutBufferInfo.buffer = velocityBuffer; // Reusing the same buffer for simplicity (ping-pong)
-        velOutBufferInfo.offset = 0;
-        velOutBufferInfo.range = VK_WHOLE_SIZE;
-        
-        VkDescriptorBufferInfo presInBufferInfo{};
-        presInBufferInfo.buffer = pressureBuffer;
-        presInBufferInfo.offset = 0;
-        presInBufferInfo.range = VK_WHOLE_SIZE;
-        
-        VkDescriptorBufferInfo presOutBufferInfo{};
-        presOutBufferInfo.buffer = pressureBuffer; // Reusing the same buffer for simplicity (ping-pong)
-        presOutBufferInfo.offset = 0;
-        presOutBufferInfo.range = VK_WHOLE_SIZE;
-        
-        std::array<VkWriteDescriptorSet, 4> descriptorWrites{};
-        
-        // Binding 0: Velocity In
-        descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[0].dstSet = advectionDescriptorSet;
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &velInBufferInfo;
-        
-        // Binding 1: Velocity Out
-        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[1].dstSet = advectionDescriptorSet;
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pBufferInfo = &velOutBufferInfo;
-        
-        // Binding 2: Pressure In
-        descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[2].dstSet = advectionDescriptorSet;
-        descriptorWrites[2].dstBinding = 2;
-        descriptorWrites[2].dstArrayElement = 0;
-        descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptorWrites[2].descriptorCount = 1;
-        descriptorWrites[2].pBufferInfo = &presInBufferInfo;
-        
-        // Binding 3: Pressure Out
-        descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[3].dstSet = advectionDescriptorSet;
-        descriptorWrites[3].dstBinding = 3;
-        descriptorWrites[3].dstArrayElement = 0;
-        descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptorWrites[3].descriptorCount = 1;
-        descriptorWrites[3].pBufferInfo = &presOutBufferInfo;
-        
-        vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+        // Bind Velocity In and Out based on ping-pong between velBuffer A and B
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            VkDescriptorBufferInfo velInBufferInfo{};
+            velInBufferInfo.buffer = (i % 2 == 0) ? velocityBufferA : velocityBufferB;
+            velInBufferInfo.offset = 0;
+            velInBufferInfo.range = VK_WHOLE_SIZE;
+
+            VkDescriptorBufferInfo velOutBufferInfo{};
+            velOutBufferInfo.buffer = (i % 2 == 0) ? velocityBufferB : velocityBufferA;
+            velOutBufferInfo.offset = 0;
+            velOutBufferInfo.range = VK_WHOLE_SIZE;
+
+            // Descriptor Writes                
+            std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+            
+            // Binding 0: Velocity In
+            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[0].dstSet = advectionDescriptorSet;
+            descriptorWrites[0].dstBinding = 0;
+            descriptorWrites[0].dstArrayElement = 0;
+            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorWrites[0].descriptorCount = 1;
+            descriptorWrites[0].pBufferInfo = &velInBufferInfo;
+            
+            // Binding 1: Velocity Out
+            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[1].dstSet = advectionDescriptorSet;
+            descriptorWrites[1].dstBinding = 1;
+            descriptorWrites[1].dstArrayElement = 0;
+            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorWrites[1].descriptorCount = 1;
+            descriptorWrites[1].pBufferInfo = &velOutBufferInfo;            
+            
+            vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+        }        
     }
 
     // Function to record Advection Command Buffer
@@ -561,52 +547,59 @@ private:
         allocInfo.commandPool = commandPool;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         allocInfo.commandBufferCount = 1;
-        
+
         VkCommandBuffer cmdBuffer;
         vkAllocateCommandBuffers(device, &allocInfo, &cmdBuffer);
-        
+
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        
+
         vkBeginCommandBuffer(cmdBuffer, &beginInfo);
-        
+
         vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, advectionPipeline);
         vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, advectionPipelineLayout, 0, 1, &advectionDescriptorSet, 0, nullptr);
-        
-        // Push Constants: NX, NY, NZ, CELL_SIZE, UBO
-        uint32_t pushConstants[5] = { NX, NY, NZ, *(uint32_t*)&CELL_SIZE, *(uint32_t*)&ubo };
-        vkCmdPushConstants(cmdBuffer, advectionPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(pushConstants), pushConstants);
-        
+
+        // Push Constants: NX, NY, NZ, CELL_SIZE, deltaTime
+        struct PushConstants {
+            uint32_t NX;
+            uint32_t NY;
+            uint32_t NZ;
+            float CELL_SIZE;
+            float deltaTime;
+        } pushConstants = { NX, NY, NZ, CELL_SIZE, ubo.deltaTime };
+
+        vkCmdPushConstants(cmdBuffer, advectionPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstants), &pushConstants);
+
         // Dispatch compute shader
-        uint32_t groupX = (NX + 15) / 16;
-        uint32_t groupY = (NY + 15) / 16;
-        uint32_t groupZ = (NZ + 15) / 16;
+        uint32_t groupX = (NX + 7) / 8;
+        uint32_t groupY = (NY + 7) / 8;
+        uint32_t groupZ = (NZ + 7) / 8;
         vkCmdDispatch(cmdBuffer, groupX, groupY, groupZ);
-        
+
         vkEndCommandBuffer(cmdBuffer);
-        
+
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &cmdBuffer;
-        
+
         VkFence fence;
         VkFenceCreateInfo fenceInfo{};
         fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceInfo.flags = 0;
         vkCreateFence(device, &fenceInfo, nullptr, &fence);
-        
+
         if (vkQueueSubmit(computeQueue, 1, &submitInfo, fence) != VK_SUCCESS) {
             throw std::runtime_error("failed to submit advection command buffer!");
         }
 
         vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
-        
+
         vkDestroyFence(device, fence, nullptr);
         vkFreeCommandBuffers(device, commandPool, 1, &cmdBuffer);
-
     }
+
 
     void initVulkan() {
         createInstance();

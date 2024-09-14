@@ -13,15 +13,7 @@ layout(binding = 1) buffer VelocityOutBuffer {
     vec3 velocityOut[];
 } velOut;
 
-layout(binding = 2) buffer PressureInBuffer {
-    float pressureIn[];
-} presIn;
-
-layout(binding = 3) buffer PressureOutBuffer {
-    float pressureOut[];
-} presOut;
-
-// Grid dimensions (passed as push constants or uniforms)
+// Grid dimensions (passed as push constants)
 layout(push_constant) uniform PushConstants {
     uint NX;
     uint NY;
@@ -35,7 +27,7 @@ uint getIndex(uint x, uint y, uint z) {
     return x + y * pc.NX + z * pc.NX * pc.NY;
 }
 
-// Bilinear interpolation function
+// Trilinear interpolation function
 vec3 sampleVelocity(vec3 pos) {
     // Convert position to grid coordinates
     float gx = pos.x / pc.CELL_SIZE;
