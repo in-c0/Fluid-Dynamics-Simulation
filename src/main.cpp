@@ -187,6 +187,12 @@ private:
     VkBuffer pressureBuffer;
     VkDeviceMemory pressureBufferMemory;
 
+    VkPipeline boundaryPipeline;
+    VkPipelineLayout boundaryPipelineLayout;
+    VkDescriptorSetLayout boundaryDescriptorSetLayout;
+    VkDescriptorSet boundaryDescriptorSet;
+    VkShaderModule boundaryShaderModule;
+
     void initWindow() {
         glfwInit();
 
@@ -227,6 +233,119 @@ private:
         // Initialize buffers to zero using a staging buffer
         initializeBuffer(velocityBuffer, velocityBufferSize, glm::vec3(0.0f));
         initializeBuffer(pressureBuffer, pressureBufferSize, 0.0f);
+
+        // Create Boundary Descriptor Set Layout
+        createBoundaryDescriptorSetLayout();
+
+        // Create Boundary Pipeline
+        createBoundaryPipeline();
+
+        // Allocate and update Boundary Descriptor Sets
+        createBoundaryDescriptorSet();
+    }
+
+
+    void createBoundaryDescriptorSetLayout(){
+        VkDescriptorSetLayoutBinding velocityBinding{};
+        velocityBinding.binding = 0;
+        velocityBinding.descriptorCount = 1;
+        velocityBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        velocityBinding.pImmutableSamplers = nullptr;
+        velocityBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+        VkDescriptorSetLayoutBinding pressureBinding{};
+        pressureBinding.binding = 1;
+        pressureBinding.descriptorCount = 1;
+        pressureBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        pressureBinding.pImmutableSamplers = nullptr;
+        pressureBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+        std::array<VkDescriptorSetLayoutBinding, 2> bindings = {velocityBinding, pressureBinding};
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo{};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+        layoutInfo.pBindings = bindings.data();
+
+        if(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &boundaryDescriptorSetLayout) != VK_SUCCESS){
+            throw std::runtime_error("failed to create boundary descriptor set layout!");
+        }
+    }
+
+    void createBoundaryPipeline(){
+        // Load and create the boundary conditions shader
+        auto boundaryShaderCode = readFile("../../shaders/boundary_conditions.spv");
+        boundaryShaderModule = createShaderModule(boundaryShaderCode);
+
+        VkPipelineShaderStageCreateInfo shaderStageInfo{};
+        shaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        shaderStageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+        shaderStageInfo.module = boundaryShaderModule;
+        shaderStageInfo.pName = "main";
+
+        // Pipeline layout
+        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutInfo.setLayoutCount = 1;
+        pipelineLayoutInfo.pSetLayouts = &boundaryDescriptorSetLayout;
+
+        if(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &boundaryPipelineLayout) != VK_SUCCESS){
+            throw std::runtime_error("failed to create boundary pipeline layout!");
+        }
+
+        // Compute pipeline
+        VkComputePipelineCreateInfo pipelineInfo{};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        pipelineInfo.stage = shaderStageInfo;
+        pipelineInfo.layout = boundaryPipelineLayout;
+
+        if(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &boundaryPipeline) != VK_SUCCESS){
+            throw std::runtime_error("failed to create boundary compute pipeline!");
+        }
+
+        vkDestroyShaderModule(device, boundaryShaderModule, nullptr);
+    }
+
+    void createBoundaryDescriptorSet(){
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = descriptorPool; // Reuse existing descriptor pool
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &boundaryDescriptorSetLayout;
+
+        if(vkAllocateDescriptorSets(device, &allocInfo, &boundaryDescriptorSet) != VK_SUCCESS){
+            throw std::runtime_error("failed to allocate boundary descriptor set!");
+        }
+
+        VkDescriptorBufferInfo velocityBufferInfo{};
+        velocityBufferInfo.buffer = velocityBuffer;
+        velocityBufferInfo.offset = 0;
+        velocityBufferInfo.range = VK_WHOLE_SIZE;
+
+        VkDescriptorBufferInfo pressureBufferInfo{};
+        pressureBufferInfo.buffer = pressureBuffer;
+        pressureBufferInfo.offset = 0;
+        pressureBufferInfo.range = VK_WHOLE_SIZE;
+
+        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+
+        descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[0].dstSet = boundaryDescriptorSet;
+        descriptorWrites[0].dstBinding = 0;
+        descriptorWrites[0].dstArrayElement = 0;
+        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorWrites[0].descriptorCount = 1;
+        descriptorWrites[0].pBufferInfo = &velocityBufferInfo;
+
+        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[1].dstSet = boundaryDescriptorSet;
+        descriptorWrites[1].dstBinding = 1;
+        descriptorWrites[1].dstArrayElement = 0;
+        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptorWrites[1].descriptorCount = 1;
+        descriptorWrites[1].pBufferInfo = &pressureBufferInfo;
+
+        vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
     }
 
     // Helper function to initialize buffers
@@ -930,7 +1049,7 @@ private:
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         poolInfo.poolSizeCount = 2;
         poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+        poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT + 1);
 
         if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
             throw std::runtime_error("failed to create descriptor pool!");
@@ -1270,6 +1389,16 @@ private:
             throw std::runtime_error("failed to submit draw command buffer!");
         }
 
+        // Record and submit boundary conditions
+        VkCommandBuffer boundaryCommandBuffer = beginSingleTimeCommands();
+
+        vkCmdBindPipeline(boundaryCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, boundaryPipeline);
+        vkCmdBindDescriptorSets(boundaryCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, boundaryPipelineLayout, 0, 1, &boundaryDescriptorSet, 0, nullptr);
+        vkCmdDispatch(boundaryCommandBuffer, (NX + 7) / 8, (NY + 7) / 8, (NZ + 7) / 8);
+
+        endSingleTimeCommands(boundaryCommandBuffer);
+
+        // Synchronization and rendering
         VkPresentInfoKHR presentInfo{};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
@@ -1292,6 +1421,39 @@ private:
         }
 
         currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    }
+
+    // Helper functions for one-time command buffers
+    VkCommandBuffer beginSingleTimeCommands(){
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandPool = commandPool;
+        allocInfo.commandBufferCount = 1;
+
+        VkCommandBuffer commandBuffer;
+        vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        vkBeginCommandBuffer(commandBuffer, &beginInfo);
+        return commandBuffer;
+    }
+
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer){
+        vkEndCommandBuffer(commandBuffer);
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &commandBuffer;
+
+        vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueWaitIdle(graphicsQueue);
+
+        vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
     }
 
     VkShaderModule createShaderModule(const std::vector<char>& code) {

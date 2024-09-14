@@ -1,0 +1,39 @@
+#version 450
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+// Grid dimensions
+const uint NX = 128;
+const uint NY = 128;
+const uint NZ = 128;
+
+// Buffers
+layout(binding = 0) buffer VelocityBuffer {
+    vec3 velocity[NX * NY * NZ];
+} velocities;
+
+layout(binding = 1) buffer PressureBuffer {
+    float pressure[NX * NY * NZ];
+} pressures;
+
+void main() {
+    uint x = gl_GlobalInvocationID.x;
+    uint y = gl_GlobalInvocationID.y;
+    uint z = gl_GlobalInvocationID.z;
+
+    if(x >= NX || y >= NY || z >= NZ) return;
+
+    uint index = x + y * NX + z * NX * NY;
+
+    // Check if the cell is on the boundary
+    bool isBoundary = (x == 0 || x == NX - 1 ||
+                       y == 0 || y == NY - 1 ||
+                       z == 0 || z == NZ - 1);
+
+    if(isBoundary){
+        // Enforce zero velocity at boundaries
+        velocities.velocity[index] = vec3(0.0);
+        // Optionally, set pressure to zero or a fixed value
+        pressures.pressure[index] = 0.0;
+    }
+}
