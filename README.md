@@ -1,3 +1,7 @@
+Will refine my approach following the read:
+https://www.nature.com/articles/s41567-022-01788-5.epdf?sharing_token=ube1KozTYa5LaC9cu6hUTNRgN0jAjWel9jnR3ZoTv0NVOvMSmh5IwcU6Uxmom-KR2i-Pcwh_ETc6--qXhoO5LUGumCj0CT7GiaXaqsPr0FAEGtEInUThPONICh3K7Yk7QT9j7819reQGUGm4B7YVD61HSBoWLK0qWbTG__eeIcs%3D
+
+
 # Fluid-Dynamics-Simulation
 GPU-sided fluid dynamics simulation, with C++, Vulkan
 
@@ -9,7 +13,6 @@ Smoothed-particle hydrodynamics (SPH) approach based on Navier-Stokes equations 
  
 
 https://github.com/user-attachments/assets/38ce9239-f8ac-43ae-98b4-1470b74f8598
-
 
 
  # Inspiration / Reference
