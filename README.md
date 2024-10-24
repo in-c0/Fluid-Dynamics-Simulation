@@ -1,6 +1,14 @@
 Will refine my approach following the read:
 https://www.nature.com/articles/s41567-022-01788-5.epdf?sharing_token=ube1KozTYa5LaC9cu6hUTNRgN0jAjWel9jnR3ZoTv0NVOvMSmh5IwcU6Uxmom-KR2i-Pcwh_ETc6--qXhoO5LUGumCj0CT7GiaXaqsPr0FAEGtEInUThPONICh3K7Yk7QT9j7819reQGUGm4B7YVD61HSBoWLK0qWbTG__eeIcs%3D
 
+My goodness WebGL is surprisingly performant!!
+https://github.com/haxiomic/GPU-Fluid-Experiments
+https://github.com/mharrys/fluids-2d
+https://github.com/PavelDoGreat/WebGL-Fluid-Simulation
+
+1 Wallpapers project - Lorenz, Search algorithms, Mandelbrot, Ink drop, Fluid sim, all mesmerizing
+2 Combine with audio recognition for interesting effects
+
 
 # Fluid-Dynamics-Simulation
 GPU-sided fluid dynamics simulation, with C++, Vulkan
