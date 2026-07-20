@@ -1,0 +1,981 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="An interactive, browser-based fluid simulation that renders the Navier-Stokes equations live. Drag to inject flow, click a term to see what it does.">
+<title>Navier-Stokes, Live - Interactive Fluid Dynamics</title>
+</head>
+<body>
+<style>
+  :root {
+    /* Dark is the committed default: the fluid has to glow on black. */
+    --bg: #06090f;
+    --panel: rgba(13, 19, 27, 0.74);
+    --panel-solid: #0c121b;
+    --border: rgba(126, 156, 176, 0.16);
+    --border-strong: rgba(126, 156, 176, 0.30);
+    --text: #d7dfe8;
+    --muted: #7e8b9a;
+    --faint: #5a6572;
+    --accent: #35d0c0;
+    --accent-dim: rgba(53, 208, 192, 0.14);
+    --highlight: #ffb454;
+    --highlight-dim: rgba(255, 180, 84, 0.16);
+    --shadow: 0 18px 50px -20px rgba(0, 0, 0, 0.85);
+
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #e9edf1;
+      --panel: rgba(252, 253, 254, 0.86);
+      --panel-solid: #ffffff;
+      --border: rgba(24, 44, 62, 0.14);
+      --border-strong: rgba(24, 44, 62, 0.26);
+      --text: #16202b;
+      --muted: #566370;
+      --faint: #8a95a1;
+      --accent: #0e9c8e;
+      --accent-dim: rgba(14, 156, 142, 0.13);
+      --highlight: #bd6f14;
+      --highlight-dim: rgba(189, 111, 20, 0.15);
+      --shadow: 0 18px 50px -24px rgba(20, 40, 60, 0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #06090f; --panel: rgba(13, 19, 27, 0.74); --panel-solid: #0c121b;
+    --border: rgba(126, 156, 176, 0.16); --border-strong: rgba(126, 156, 176, 0.30);
+    --text: #d7dfe8; --muted: #7e8b9a; --faint: #5a6572;
+    --accent: #35d0c0; --accent-dim: rgba(53, 208, 192, 0.14);
+    --highlight: #ffb454; --highlight-dim: rgba(255, 180, 84, 0.16);
+    --shadow: 0 18px 50px -20px rgba(0, 0, 0, 0.85);
+  }
+  :root[data-theme="light"] {
+    --bg: #e9edf1; --panel: rgba(252, 253, 254, 0.86); --panel-solid: #ffffff;
+    --border: rgba(24, 44, 62, 0.14); --border-strong: rgba(24, 44, 62, 0.26);
+    --text: #16202b; --muted: #566370; --faint: #8a95a1;
+    --accent: #0e9c8e; --accent-dim: rgba(14, 156, 142, 0.13);
+    --highlight: #bd6f14; --highlight-dim: rgba(189, 111, 20, 0.15);
+    --shadow: 0 18px 50px -24px rgba(20, 40, 60, 0.4);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  #app { position: fixed; inset: 0; }
+
+  /* The simulation viewport is always dark — it is the instrument screen. */
+  #sim {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    display: block;
+    background: #05070b;
+    touch-action: none;
+    cursor: crosshair;
+  }
+
+  .hud {
+    position: absolute;
+    background: var(--panel);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    backdrop-filter: blur(16px) saturate(1.2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    z-index: 5;
+  }
+
+  /* ---- top bar ---- */
+  .hud-top {
+    top: 18px; left: 18px;
+    padding: 14px 18px;
+    max-width: min(46ch, calc(100vw - 36px));
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 4px;
+  }
+  .hud-top h1 {
+    font-size: 19px;
+    line-height: 1.15;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .hud-top p {
+    margin: 6px 0 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  /* ---- equation card ---- */
+  .hud-eq {
+    left: 18px; bottom: 18px;
+    padding: 16px 18px 14px;
+    width: min(430px, calc(100vw - 36px));
+  }
+  .card-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 8px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  math {
+    font-size: 1.42rem;
+    color: var(--text);
+    display: block;
+  }
+  .eqwrap { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+  math + math { margin-top: 2px; font-size: 1.05rem; color: var(--muted); }
+  .term {
+    cursor: pointer;
+    border-radius: 6px;
+    padding: 1px 2px;
+    transition: color 0.18s ease, background-color 0.18s ease;
+  }
+  .term:hover { color: var(--accent); background: var(--accent-dim); }
+  .term.active {
+    color: var(--highlight);
+    background: var(--highlight-dim);
+    box-shadow: inset 0 -2px 0 var(--highlight);
+  }
+  #explain {
+    margin-top: 12px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--muted);
+    min-height: 3.4em;
+  }
+  #explain b { color: var(--text); font-weight: 600; }
+  #explain .tag {
+    font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--highlight);
+    display: inline-block; margin-right: 6px;
+  }
+
+  /* ---- control rail ---- */
+  .hud-controls {
+    top: 18px; right: 18px; bottom: 18px;
+    width: 268px;
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 6px;
+    overflow-y: auto;
+  }
+  .hud-controls::-webkit-scrollbar { width: 8px; }
+  .hud-controls::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; }
+
+  .seg {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+    margin-bottom: 6px;
+  }
+  .seg button {
+    font-family: var(--font-mono);
+    font-size: 11px; letter-spacing: 0.03em;
+    padding: 8px 6px;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .seg button:hover { color: var(--text); border-color: var(--border-strong); }
+  .seg button[aria-pressed="true"] {
+    color: var(--bg); background: var(--accent); border-color: var(--accent);
+    font-weight: 600;
+  }
+  :root[data-theme="light"] .seg button[aria-pressed="true"],
+  .seg button[aria-pressed="true"] { color: #05070b; }
+
+  .group-label {
+    font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--faint);
+    margin: 12px 0 4px;
+  }
+
+  .ctl { display: flex; flex-direction: column; gap: 5px; padding: 5px 0; }
+  .ctl .row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12px;
+  }
+  .ctl .name { color: var(--text); }
+  .ctl .sym { font-family: var(--font-mono); color: var(--faint); font-size: 11px; margin-left: 5px; }
+  .ctl .val {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    font-size: 11.5px;
+  }
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 4px; border-radius: 3px;
+    background: var(--border-strong);
+    outline: none; cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 15px; height: 15px; border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--panel-solid);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 13px; height: 13px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--panel-solid);
+  }
+  input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--accent-dim), 0 0 0 1px var(--accent); }
+
+  .btnrow { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+  .btn {
+    font-family: var(--font-sans);
+    font-size: 12px; font-weight: 500;
+    padding: 9px 8px;
+    color: var(--text);
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.toggle[aria-pressed="true"] { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .btn.wide { grid-column: 1 / -1; }
+
+  .footnote {
+    margin-top: auto; padding-top: 12px;
+    font-size: 11px; line-height: 1.5; color: var(--faint);
+  }
+  .footnote a { color: var(--muted); }
+
+  .theme-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--faint); font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 0;
+  }
+  .theme-btn:hover { color: var(--accent); }
+
+  #error {
+    position: absolute; inset: 0; z-index: 20;
+    display: none; place-items: center; text-align: center;
+    padding: 24px;
+  }
+  #error div { max-width: 40ch; color: var(--muted); font-size: 14px; line-height: 1.6; }
+  #error b { color: var(--text); }
+
+  /* ---- responsive: single-column scroll on small screens ---- */
+  @media (max-width: 900px) {
+    body { overflow: auto; }
+    #app { position: relative; min-height: 100%; }
+    #sim { position: fixed; height: 56vh; z-index: 0; }
+    .hud { position: relative; }
+    .hud-top, .hud-eq, .hud-controls {
+      position: relative;
+      left: auto; right: auto; top: auto; bottom: auto;
+      width: auto; max-width: none;
+      margin: 12px;
+    }
+    .hud-top { margin-top: calc(56vh + 12px); }
+    .hud-controls { height: auto; }
+    #sim { cursor: crosshair; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .term, .seg button, .btn { transition: none; }
+  }
+</style>
+
+<div id="app">
+  <canvas id="sim"></canvas>
+
+  <header class="hud hud-top">
+    <p class="eyebrow">Incompressible Navier&ndash;Stokes</p>
+    <h1>The maths of moving fluid, made visible</h1>
+    <p>Drag anywhere to push the fluid. Every wisp is the equation below solving itself &mdash; click a term to see which part of the physics it controls.</p>
+  </header>
+
+  <section class="hud hud-eq" aria-label="Governing equations">
+    <p class="card-label"><span>Momentum &middot; conservation of mass</span></p>
+    <div class="eqwrap">
+      <math display="block">
+        <mrow>
+          <mfrac><mrow><mo>&#8706;</mo><mi mathvariant="bold">u</mi></mrow><mrow><mo>&#8706;</mo><mi>t</mi></mrow></mfrac>
+          <mo>=</mo>
+          <mrow class="term" id="term-advection" role="button" tabindex="0" aria-label="advection term">
+            <mo>&#8722;</mo><mo>(</mo><mi mathvariant="bold">u</mi><mo>&#8901;</mo><mo>&#8711;</mo><mo>)</mo><mi mathvariant="bold">u</mi>
+          </mrow>
+          <mrow class="term" id="term-pressure" role="button" tabindex="0" aria-label="pressure gradient term">
+            <mo>&#8722;</mo><mfrac><mn>1</mn><mi>&#961;</mi></mfrac><mo>&#8711;</mo><mi>p</mi>
+          </mrow>
+          <mrow class="term" id="term-diffusion" role="button" tabindex="0" aria-label="viscous diffusion term">
+            <mo>+</mo><mi>&#957;</mi><msup><mo>&#8711;</mo><mn>2</mn></msup><mi mathvariant="bold">u</mi>
+          </mrow>
+          <mrow class="term" id="term-force" role="button" tabindex="0" aria-label="external force term">
+            <mo>+</mo><mi mathvariant="bold">f</mi>
+          </mrow>
+        </mrow>
+      </math>
+      <math display="block">
+        <mrow class="term" id="term-incompressibility" role="button" tabindex="0" aria-label="incompressibility constraint">
+          <mo>&#8711;</mo><mo>&#8901;</mo><mi mathvariant="bold">u</mi><mo>=</mo><mn>0</mn>
+        </mrow>
+      </math>
+    </div>
+    <p id="explain"></p>
+  </section>
+
+  <aside class="hud hud-controls" aria-label="Simulation controls">
+    <p class="group-label" style="margin-top:0">Show field</p>
+    <div class="seg" id="viz">
+      <button data-mode="0" aria-pressed="true">Dye</button>
+      <button data-mode="1">Velocity</button>
+      <button data-mode="2">Pressure</button>
+      <button data-mode="3">Vorticity</button>
+    </div>
+
+    <p class="group-label">Physics</p>
+    <div class="ctl" data-term="term-diffusion">
+      <div class="row"><span class="name">Viscosity<span class="sym">&#957;</span></span><span class="val" id="v-visc"></span></div>
+      <input type="range" id="visc" min="0" max="1" step="0.01" value="0">
+    </div>
+    <div class="ctl" data-term="term-incompressibility">
+      <div class="row"><span class="name">Pressure iterations<span class="sym">&#8711;&#178;p</span></span><span class="val" id="v-iter"></span></div>
+      <input type="range" id="iter" min="8" max="50" step="1" value="26">
+    </div>
+    <div class="ctl">
+      <div class="row"><span class="name">Swirl<span class="sym">&#969;</span></span><span class="val" id="v-curl"></span></div>
+      <input type="range" id="curl" min="0" max="50" step="1" value="20">
+    </div>
+    <div class="ctl">
+      <div class="row"><span class="name">Time step<span class="sym">&#916;t</span></span><span class="val" id="v-dt"></span></div>
+      <input type="range" id="dt" min="0.3" max="2" step="0.05" value="1">
+    </div>
+
+    <p class="group-label">Appearance</p>
+    <div class="ctl">
+      <div class="row"><span class="name">Dye fade</span><span class="val" id="v-diss"></span></div>
+      <input type="range" id="diss" min="0.2" max="4" step="0.1" value="1">
+    </div>
+    <div class="ctl">
+      <div class="row"><span class="name">Brush size</span><span class="val" id="v-rad"></span></div>
+      <input type="range" id="rad" min="0.1" max="0.6" step="0.02" value="0.22">
+    </div>
+
+    <div class="btnrow">
+      <button class="btn toggle" id="walk" aria-pressed="false">Guided tour</button>
+      <button class="btn toggle" id="auto" aria-pressed="true">Auto-splash</button>
+      <button class="btn" id="pause">Pause</button>
+      <button class="btn" id="reset">Reset</button>
+    </div>
+
+    <p class="footnote">
+      Semi-Lagrangian "stable fluids" on a WebGL2 grid.
+      <button class="theme-btn" id="theme" style="margin-top:8px">&#9788; toggle theme</button>
+    </p>
+  </aside>
+
+  <div id="error"><div><b>WebGL2 with float rendering isn't available here.</b><br>This demo needs a browser and GPU that support the <code>EXT_color_buffer_float</code> extension. Try a recent Chrome, Firefox, or Safari on a desktop.</div></div>
+</div>
+
+<script>
+"use strict";
+(function () {
+  const canvas = document.getElementById("sim");
+  const errBox = document.getElementById("error");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const gl = canvas.getContext("webgl2", { alpha: false, antialias: false, depth: false, stencil: false, preserveDrawingBuffer: false });
+  if (!gl || !gl.getExtension("EXT_color_buffer_float")) {
+    errBox.style.display = "grid";
+    return;
+  }
+  gl.getExtension("OES_texture_float_linear");
+
+  // ---- tunables ----
+  const config = {
+    SIM_RES: 192,
+    DYE_RES: 640,
+    pressureIterations: 26,
+    viscosity: 0.0,
+    viscIterations: 18,
+    curl: 20,
+    dt: 1.0,
+    dyeDissipation: 1.0,
+    velDissipation: 0.15,
+    splatRadius: 0.22,
+    splatForce: 6200,
+    displayMode: 0,
+    paused: false,
+    auto: !reduceMotion,
+    walkthrough: false,
+  };
+
+  // ---- shader plumbing ----
+  const VERT = `#version 300 es
+  precision highp float;
+  in vec2 aPosition;
+  out vec2 vUv; out vec2 vL; out vec2 vR; out vec2 vT; out vec2 vB;
+  uniform vec2 texelSize;
+  void main() {
+    vUv = aPosition * 0.5 + 0.5;
+    vL = vUv - vec2(texelSize.x, 0.0);
+    vR = vUv + vec2(texelSize.x, 0.0);
+    vT = vUv + vec2(0.0, texelSize.y);
+    vB = vUv - vec2(0.0, texelSize.y);
+    gl_Position = vec4(aPosition, 0.0, 1.0);
+  }`;
+
+  function compile(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      throw new Error(gl.getShaderInfoLog(s) + "\n" + src);
+    }
+    return s;
+  }
+  const vertShader = compile(gl.VERTEX_SHADER, VERT);
+
+  function program(fragSrc) {
+    const p = gl.createProgram();
+    gl.attachShader(p, vertShader);
+    gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fragSrc));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    const uniforms = {};
+    const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+    for (let i = 0; i < n; i++) {
+      const name = gl.getActiveUniform(p, i).name;
+      uniforms[name] = gl.getUniformLocation(p, name);
+    }
+    return { program: p, uniforms };
+  }
+
+  const F = `#version 300 es
+  precision highp float; precision highp sampler2D;
+  in vec2 vUv; in vec2 vL; in vec2 vR; in vec2 vT; in vec2 vB;
+  out vec4 outColor;`;
+
+  const advectionProg = program(`${F}
+    uniform sampler2D uVelocity; uniform sampler2D uSource;
+    uniform vec2 texelSize; uniform float dt; uniform float dissipation;
+    void main() {
+      vec2 coord = vUv - dt * texture(uVelocity, vUv).xy * texelSize;
+      vec4 result = texture(uSource, coord);
+      outColor = result / (1.0 + dissipation * dt);
+    }`);
+
+  const divergenceProg = program(`${F}
+    uniform sampler2D uVelocity;
+    void main() {
+      float L = texture(uVelocity, vL).x;
+      float R = texture(uVelocity, vR).x;
+      float T = texture(uVelocity, vT).y;
+      float B = texture(uVelocity, vB).y;
+      vec2 C = texture(uVelocity, vUv).xy;
+      if (vL.x < 0.0) L = -C.x;
+      if (vR.x > 1.0) R = -C.x;
+      if (vT.y > 1.0) T = -C.y;
+      if (vB.y < 0.0) B = -C.y;
+      outColor = vec4(0.5 * (R - L + T - B), 0.0, 0.0, 1.0);
+    }`);
+
+  const curlProg = program(`${F}
+    uniform sampler2D uVelocity;
+    void main() {
+      float L = texture(uVelocity, vL).y;
+      float R = texture(uVelocity, vR).y;
+      float T = texture(uVelocity, vT).x;
+      float B = texture(uVelocity, vB).x;
+      outColor = vec4(0.5 * (R - L - T + B), 0.0, 0.0, 1.0);
+    }`);
+
+  const vorticityProg = program(`${F}
+    uniform sampler2D uVelocity; uniform sampler2D uCurl;
+    uniform float curl; uniform float dt;
+    void main() {
+      float L = texture(uCurl, vL).x;
+      float R = texture(uCurl, vR).x;
+      float T = texture(uCurl, vT).x;
+      float B = texture(uCurl, vB).x;
+      float C = texture(uCurl, vUv).x;
+      vec2 force = 0.5 * vec2(abs(T) - abs(B), abs(R) - abs(L));
+      force /= length(force) + 0.0001;
+      force *= curl * C;
+      force.y *= -1.0;
+      vec2 vel = texture(uVelocity, vUv).xy;
+      outColor = vec4(clamp(vel + force * dt, -1500.0, 1500.0), 0.0, 1.0);
+    }`);
+
+  const pressureProg = program(`${F}
+    uniform sampler2D uPressure; uniform sampler2D uDivergence;
+    void main() {
+      float L = texture(uPressure, vL).x;
+      float R = texture(uPressure, vR).x;
+      float T = texture(uPressure, vT).x;
+      float B = texture(uPressure, vB).x;
+      float div = texture(uDivergence, vUv).x;
+      outColor = vec4((L + R + B + T - div) * 0.25, 0.0, 0.0, 1.0);
+    }`);
+
+  const gradientProg = program(`${F}
+    uniform sampler2D uPressure; uniform sampler2D uVelocity;
+    void main() {
+      float L = texture(uPressure, vL).x;
+      float R = texture(uPressure, vR).x;
+      float T = texture(uPressure, vT).x;
+      float B = texture(uPressure, vB).x;
+      vec2 vel = texture(uVelocity, vUv).xy;
+      vel -= vec2(R - L, T - B);
+      outColor = vec4(vel, 0.0, 1.0);
+    }`);
+
+  const diffuseProg = program(`${F}
+    uniform sampler2D uVelocity; uniform sampler2D uSource; uniform float alpha;
+    void main() {
+      vec2 L = texture(uVelocity, vL).xy;
+      vec2 R = texture(uVelocity, vR).xy;
+      vec2 T = texture(uVelocity, vT).xy;
+      vec2 B = texture(uVelocity, vB).xy;
+      vec2 b = texture(uSource, vUv).xy;
+      outColor = vec4((b + alpha * (L + R + T + B)) / (1.0 + 4.0 * alpha), 0.0, 1.0);
+    }`);
+
+  const splatProg = program(`${F}
+    uniform sampler2D uTarget; uniform float aspectRatio;
+    uniform vec3 color; uniform vec2 point; uniform float radius;
+    void main() {
+      vec2 p = vUv - point;
+      p.x *= aspectRatio;
+      vec3 splat = exp(-dot(p, p) / radius) * color;
+      outColor = vec4(texture(uTarget, vUv).xyz + splat, 1.0);
+    }`);
+
+  const copyProg = program(`${F}
+    uniform sampler2D uTexture;
+    void main() { outColor = texture(uTexture, vUv); }`);
+
+  const displayProg = program(`${F}
+    uniform sampler2D uTexture; uniform int uMode; uniform float uScale;
+    vec3 hsv2rgb(vec3 c) {
+      vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+      vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+      return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+    }
+    vec3 diverging(float t) {
+      t = clamp(t, -1.0, 1.0);
+      vec3 mid = vec3(0.05, 0.06, 0.09);
+      vec3 neg = vec3(0.18, 0.5, 0.95);
+      vec3 pos = vec3(0.98, 0.5, 0.18);
+      return t < 0.0 ? mix(mid, neg, -t) : mix(mid, pos, t);
+    }
+    void main() {
+      if (uMode == 0) {
+        vec3 c = texture(uTexture, vUv).rgb;
+        outColor = vec4(c, 1.0);
+      } else if (uMode == 1) {
+        vec2 v = texture(uTexture, vUv).xy;
+        float sp = clamp(length(v) * uScale, 0.0, 1.0);
+        float ang = atan(v.y, v.x) / 6.2831853 + 0.5;
+        outColor = vec4(hsv2rgb(vec3(ang, 0.72, sp)), 1.0);
+      } else {
+        float s = texture(uTexture, vUv).x * uScale;
+        outColor = vec4(diverging(s), 1.0);
+      }
+    }`);
+
+  // ---- fullscreen quad ----
+  const quad = gl.createVertexArray();
+  gl.bindVertexArray(quad);
+  const vbo = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+  function blit(target) {
+    if (target == null) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    } else {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
+      gl.viewport(0, 0, target.width, target.height);
+    }
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  // ---- framebuffers ----
+  function createFBO(w, h, internal, format, type, filter) {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, type, null);
+    const fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.viewport(0, 0, w, h);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    return {
+      texture: tex, fbo, width: w, height: h,
+      texelX: 1 / w, texelY: 1 / h,
+      attach(unit) { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tex); return unit; }
+    };
+  }
+  function createDoubleFBO(w, h, internal, format, type, filter) {
+    let a = createFBO(w, h, internal, format, type, filter);
+    let b = createFBO(w, h, internal, format, type, filter);
+    return {
+      width: w, height: h, texelX: 1 / w, texelY: 1 / h,
+      get read() { return a; },
+      get write() { return b; },
+      swap() { const t = a; a = b; b = t; }
+    };
+  }
+
+  const HALF = gl.HALF_FLOAT;
+  let velocity, dye, divergence, curl, pressure, velocity0;
+
+  function initFramebuffers() {
+    const sim = getResolution(config.SIM_RES);
+    const dyeR = getResolution(config.DYE_RES);
+    const rg = gl.RG16F, rgFmt = gl.RG;
+    const rgba = gl.RGBA16F, rgbaFmt = gl.RGBA;
+    const r = gl.R16F, rFmt = gl.RED;
+    velocity = createDoubleFBO(sim.width, sim.height, rg, rgFmt, HALF, gl.LINEAR);
+    velocity0 = createFBO(sim.width, sim.height, rg, rgFmt, HALF, gl.NEAREST);
+    dye = createDoubleFBO(dyeR.width, dyeR.height, rgba, rgbaFmt, HALF, gl.LINEAR);
+    divergence = createFBO(sim.width, sim.height, r, rFmt, HALF, gl.NEAREST);
+    curl = createFBO(sim.width, sim.height, r, rFmt, HALF, gl.NEAREST);
+    pressure = createDoubleFBO(sim.width, sim.height, r, rFmt, HALF, gl.NEAREST);
+  }
+
+  function getResolution(res) {
+    let aspect = gl.drawingBufferWidth / gl.drawingBufferHeight;
+    if (aspect < 1) aspect = 1 / aspect;
+    const min = Math.round(res);
+    const max = Math.round(res * aspect);
+    return gl.drawingBufferWidth > gl.drawingBufferHeight
+      ? { width: max, height: min } : { width: min, height: max };
+  }
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.floor(canvas.clientWidth * dpr);
+    const h = Math.floor(canvas.clientHeight * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w; canvas.height = h;
+      initFramebuffers();
+    }
+  }
+
+  function use(p) { gl.useProgram(p.program); return p.uniforms; }
+
+  // ---- one simulation step ----
+  function step(dt) {
+    gl.disable(gl.BLEND);
+
+    // curl (vorticity magnitude)
+    let u = use(curlProg);
+    gl.uniform2f(u.texelSize, velocity.texelX, velocity.texelY);
+    gl.uniform1i(u.uVelocity, velocity.read.attach(0));
+    blit(curl);
+
+    // vorticity confinement force
+    if (config.curl > 0) {
+      u = use(vorticityProg);
+      gl.uniform2f(u.texelSize, velocity.texelX, velocity.texelY);
+      gl.uniform1i(u.uVelocity, velocity.read.attach(0));
+      gl.uniform1i(u.uCurl, curl.attach(1));
+      gl.uniform1f(u.curl, config.curl);
+      gl.uniform1f(u.dt, dt);
+      blit(velocity.write); velocity.swap();
+    }
+
+    // viscous diffusion (Jacobi) — only when it matters
+    if (config.viscosity > 0.001) {
+      u = use(copyProg);
+      gl.uniform1i(u.uTexture, velocity.read.attach(0));
+      blit(velocity0);
+      const alpha = config.viscosity * 6.0 * dt * config.SIM_RES;
+      for (let i = 0; i < config.viscIterations; i++) {
+        u = use(diffuseProg);
+        gl.uniform2f(u.texelSize, velocity.texelX, velocity.texelY);
+        gl.uniform1i(u.uVelocity, velocity.read.attach(0));
+        gl.uniform1i(u.uSource, velocity0.attach(1));
+        gl.uniform1f(u.alpha, alpha);
+        blit(velocity.write); velocity.swap();
+      }
+    }
+
+    // divergence
+    u = use(divergenceProg);
+    gl.uniform2f(u.texelSize, velocity.texelX, velocity.texelY);
+    gl.uniform1i(u.uVelocity, velocity.read.attach(0));
+    blit(divergence);
+
+    // pressure solve (Jacobi)
+    u = use(copyProg);
+    gl.uniform1i(u.uTexture, pressure.read.attach(0));
+    blit(pressure.write); pressure.swap();
+    u = use(pressureProg);
+    gl.uniform2f(u.texelSize, velocity.texelX, velocity.texelY);
+    for (let i = 0; i < config.pressureIterations; i++) {
+      gl.uniform1i(u.uDivergence, divergence.attach(0));
+      gl.uniform1i(u.uPressure, pressure.read.attach(1));
+      blit(pressure.write); pressure.swap();
+    }
+
+    // subtract pressure gradient -> divergence-free velocity
+    u = use(gradientProg);
+    gl.uniform2f(u.texelSize, velocity.texelX, velocity.texelY);
+    gl.uniform1i(u.uPressure, pressure.read.attach(0));
+    gl.uniform1i(u.uVelocity, velocity.read.attach(1));
+    blit(velocity.write); velocity.swap();
+
+    // advect velocity
+    u = use(advectionProg);
+    gl.uniform2f(u.texelSize, velocity.texelX, velocity.texelY);
+    gl.uniform1i(u.uVelocity, velocity.read.attach(0));
+    gl.uniform1i(u.uSource, velocity.read.attach(0));
+    gl.uniform1f(u.dt, dt);
+    gl.uniform1f(u.dissipation, config.velDissipation);
+    blit(velocity.write); velocity.swap();
+
+    // advect dye
+    u = use(advectionProg);
+    gl.uniform2f(u.texelSize, velocity.texelX, velocity.texelY);
+    gl.uniform1i(u.uVelocity, velocity.read.attach(0));
+    gl.uniform1i(u.uSource, dye.read.attach(1));
+    gl.uniform1f(u.dt, dt);
+    gl.uniform1f(u.dissipation, config.dyeDissipation);
+    blit(dye.write); dye.swap();
+  }
+
+  function render() {
+    const u = use(displayProg);
+    let src, mode = config.displayMode, scale = 1.0;
+    if (mode === 0) { src = dye.read; }
+    else if (mode === 1) { src = velocity.read; scale = 0.06; }
+    else if (mode === 2) { src = pressure.read; mode = 2; scale = 1.8; }
+    else { src = curl; mode = 2; scale = 1.4; }
+    gl.uniform1i(u.uMode, mode);
+    gl.uniform1f(u.uScale, scale);
+    gl.uniform1i(u.uTexture, src.attach(0));
+    blit(null);
+  }
+
+  // ---- splats ----
+  function splat(x, y, dx, dy, color) {
+    let u = use(splatProg);
+    gl.uniform1f(u.aspectRatio, canvas.width / canvas.height);
+    gl.uniform1i(u.uTarget, velocity.read.attach(0));
+    gl.uniform2f(u.point, x, y);
+    gl.uniform1f(u.radius, config.splatRadius / 100.0);
+    gl.uniform3f(u.color, dx, dy, 0.0);
+    blit(velocity.write); velocity.swap();
+
+    gl.uniform1i(u.uTarget, dye.read.attach(0));
+    gl.uniform3f(u.color, color[0], color[1], color[2]);
+    blit(dye.write); dye.swap();
+  }
+
+  let hue = Math.random();
+  function nextColor() {
+    hue = (hue + 0.618033) % 1.0;
+    const c = hsv(hue, 0.85, 1.0);
+    return [c[0] * 0.16, c[1] * 0.16, c[2] * 0.16];
+  }
+  function hsv(h, s, v) {
+    let r, g, b, i = Math.floor(h * 6), f = h * 6 - i;
+    let p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+    switch (i % 6) {
+      case 0: r = v, g = t, b = p; break;
+      case 1: r = q, g = v, b = p; break;
+      case 2: r = p, g = v, b = t; break;
+      case 3: r = p, g = q, b = v; break;
+      case 4: r = t, g = p, b = v; break;
+      default: r = v, g = p, b = q;
+    }
+    return [r, g, b];
+  }
+
+  // ---- pointer interaction ----
+  const pointer = { down: false, x: 0, y: 0, dx: 0, dy: 0, color: nextColor() };
+  function pos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: (e.clientX - rect.left) / rect.width, y: 1 - (e.clientY - rect.top) / rect.height };
+  }
+  canvas.addEventListener("pointerdown", (e) => {
+    const p = pos(e);
+    pointer.down = true; pointer.x = p.x; pointer.y = p.y; pointer.dx = 0; pointer.dy = 0;
+    pointer.color = nextColor();
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    if (!pointer.down) return;
+    const p = pos(e);
+    pointer.dx = (p.x - pointer.x) * config.splatForce;
+    pointer.dy = (p.y - pointer.y) * config.splatForce;
+    pointer.x = p.x; pointer.y = p.y;
+    splat(p.x, p.y, pointer.dx, pointer.dy, pointer.color);
+  });
+  const releasePointer = () => { pointer.down = false; };
+  canvas.addEventListener("pointerup", releasePointer);
+  canvas.addEventListener("pointercancel", releasePointer);
+  canvas.addEventListener("pointerleave", releasePointer);
+
+  function seedSplats(n) {
+    for (let i = 0; i < n; i++) {
+      const c = nextColor();
+      const x = Math.random(), y = Math.random();
+      splat(x, y, (Math.random() - 0.5) * 1200, (Math.random() - 0.5) * 1200,
+            [c[0] * 6, c[1] * 6, c[2] * 6]);
+    }
+  }
+
+  // ---- equation term wiring ----
+  const explain = document.getElementById("explain");
+  const TERMS = {
+    "term-advection": { viz: 0, tag: "Advection", html: "The fluid <b>carries its own velocity</b> downstream. We trace each grid cell backward along the flow and copy the value from where it came &mdash; the semi&#8209;Lagrangian scheme that keeps the sim stable at any time step." },
+    "term-diffusion": { viz: 1, tag: "Viscous diffusion", html: "Internal friction <b>smears momentum</b> into neighbouring cells. &#957; is the kinematic viscosity &mdash; raise it and crisp vortices melt into honey. Switched to the velocity field so you can watch it smooth out." },
+    "term-pressure":  { viz: 2, tag: "Pressure gradient", html: "Pressure pushes fluid from <b>high to low</b>. We solve for the pressure that keeps the flow incompressible, then subtract its gradient. Red is high, blue is low." },
+    "term-force":     { viz: 0, tag: "External force", html: "This term is <b>you</b>. Dragging on the canvas injects velocity and dye &mdash; the <b>f</b> in the equation. Everything else is the fluid responding." },
+    "term-incompressibility": { viz: 3, tag: "Incompressibility", html: "An ideal fluid can't be squashed, so the velocity field must be <b>divergence&#8209;free</b>. Enforcing it is a Poisson solve (the projection step); more iterations means a cleaner, more swirl&#8209;preserving flow. Showing vorticity &mdash; the curl of the field." },
+  };
+  const TOUR = ["term-force", "term-advection", "term-diffusion", "term-pressure", "term-incompressibility"];
+
+  function activateTerm(id, changeViz) {
+    document.querySelectorAll(".term").forEach((t) => t.classList.toggle("active", t.id === id));
+    const info = TERMS[id];
+    if (!info) return;
+    explain.innerHTML = `<span class="tag">${info.tag}</span>${info.html}`;
+    if (changeViz) setViz(info.viz);
+  }
+  document.querySelectorAll(".term").forEach((el) => {
+    el.addEventListener("click", () => { stopTour(); activateTerm(el.id, true); });
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); stopTour(); activateTerm(el.id, true); } });
+  });
+
+  // ---- viz control ----
+  const vizButtons = [...document.querySelectorAll("#viz button")];
+  function setViz(mode) {
+    config.displayMode = mode;
+    vizButtons.forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.mode === mode)));
+  }
+  vizButtons.forEach((b) => b.addEventListener("click", () => setViz(+b.dataset.mode)));
+
+  // ---- guided tour ----
+  let tourTimer = 0, tourIdx = 0;
+  const walkBtn = document.getElementById("walk");
+  function startTour() {
+    config.walkthrough = true; walkBtn.setAttribute("aria-pressed", "true");
+    tourIdx = 0; tourTimer = 0; activateTerm(TOUR[0], true);
+  }
+  function stopTour() {
+    config.walkthrough = false; walkBtn.setAttribute("aria-pressed", "false");
+  }
+  walkBtn.addEventListener("click", () => config.walkthrough ? stopTour() : startTour());
+
+  // ---- sliders ----
+  function fmt(n, d) { return Number(n).toFixed(d); }
+  function bind(id, key, label, decimals, after) {
+    const input = document.getElementById(id);
+    const out = document.getElementById("v-" + id);
+    const paint = () => { out.textContent = label ? label(+input.value) : fmt(+input.value, decimals); };
+    input.addEventListener("input", () => { config[key] = +input.value; paint(); if (after) after(+input.value); });
+    paint();
+  }
+  bind("visc", "viscosity", (v) => v === 0 ? "off" : fmt(v, 2), 2, () => { if (config.viscosity > 0.001) activateTerm("term-diffusion", false); });
+  bind("iter", "pressureIterations", (v) => String(v | 0), 0);
+  bind("curl", "curl", (v) => String(v | 0), 0);
+  bind("dt", "dt", null, 2);
+  bind("diss", "dyeDissipation", null, 1);
+  bind("rad", "splatRadius", null, 2);
+
+  document.querySelectorAll(".ctl[data-term]").forEach((ctl) => {
+    ctl.querySelector("input").addEventListener("focus", () => { stopTour(); activateTerm(ctl.dataset.term, false); });
+  });
+
+  // ---- buttons ----
+  const pauseBtn = document.getElementById("pause");
+  pauseBtn.addEventListener("click", () => {
+    config.paused = !config.paused;
+    pauseBtn.textContent = config.paused ? "Resume" : "Pause";
+    pauseBtn.setAttribute("aria-pressed", String(config.paused));
+  });
+  const autoBtn = document.getElementById("auto");
+  autoBtn.addEventListener("click", () => {
+    config.auto = !config.auto;
+    autoBtn.setAttribute("aria-pressed", String(config.auto));
+  });
+  document.getElementById("reset").addEventListener("click", () => { initFramebuffers(); seedSplats(6); });
+
+  // ---- theme toggle ----
+  document.getElementById("theme").addEventListener("click", () => {
+    const root = document.documentElement;
+    const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+    const current = root.getAttribute("data-theme") || (dark ? "dark" : "light");
+    root.setAttribute("data-theme", current === "dark" ? "light" : "dark");
+  });
+
+  // ---- main loop ----
+  let last = 0, autoAccum = 0;
+  function frame(now) {
+    const dt = Math.min((now - last) / 1000 || 0.016, 0.033) * 60 * 0.016 * config.dt * 3.2;
+    last = now;
+    resize();
+
+    if (!config.paused) {
+      // guided tour narration
+      if (config.walkthrough && !reduceMotion) {
+        tourTimer += dt;
+        if (tourTimer > 0.9) { tourTimer = 0; tourIdx = (tourIdx + 1) % TOUR.length; activateTerm(TOUR[tourIdx], true); }
+      }
+      // ambient auto-splash so it's never static
+      if (config.auto && !pointer.down) {
+        autoAccum += dt;
+        if (autoAccum > 0.55) {
+          autoAccum = 0;
+          const c = nextColor();
+          const x = 0.5 + (Math.random() - 0.5) * 0.7;
+          const y = 0.5 + (Math.random() - 0.5) * 0.7;
+          splat(x, y, (Math.random() - 0.5) * 900, (Math.random() - 0.5) * 900, [c[0] * 5, c[1] * 5, c[2] * 5]);
+        }
+      }
+      step(Math.max(dt, 0.001));
+    }
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  // ---- boot ----
+  resize();
+  seedSplats(7);
+  activateTerm("term-force", false);
+  requestAnimationFrame((t) => { last = t; frame(t); });
+})();
+</script>
+</body>
+</html>

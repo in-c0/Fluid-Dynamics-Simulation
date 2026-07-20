@@ -17,6 +17,43 @@ GPU-sided fluid dynamics simulation, with C++, Vulkan
 Smoothed-particle hydrodynamics (SPH) approach based on Navier-Stokes equations for incompressible flow
 
 
+## 🌊 Interactive web demo — "Navier–Stokes, Live"
+
+A zero-install, browser-based teaching companion lives in [`web/index.html`](web/index.html).
+Open it and **drag anywhere** to push the fluid; every wisp is the incompressible
+Navier–Stokes equation solving itself in real time on a WebGL2 grid.
+
+What it teaches:
+
+- **The equation is the UI.** Click any term — advection `(u·∇)u`, viscous diffusion
+  `ν∇²u`, the pressure gradient `−∇p/ρ`, the external force `f`, or the
+  incompressibility constraint `∇·u = 0` — to see a plain-language explanation and
+  jump to the field it controls.
+- **Toggle what you see:** the dye, the velocity field (direction-as-hue), the
+  pressure, or the vorticity (curl).
+- **Feel the parameters:** sliders for viscosity, pressure-solver iterations, swirl
+  (vorticity confinement), time step, dye fade, and brush size.
+- **Guided tour** narrates the solver stage by stage.
+
+It's a lightweight [Stable Fluids](https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf)
+(semi-Lagrangian) implementation, mirroring the same stages as the Vulkan solver
+below — but runnable by anyone, instantly.
+
+### Running it
+
+It's a single self-contained file with no build step or dependencies:
+
+```
+# from the repo root
+python3 -m http.server -d web 8000
+# then open http://localhost:8000
+```
+
+Or just open `web/index.html` directly in a modern browser (Chrome, Firefox, or
+Safari — anything with WebGL2 + `EXT_color_buffer_float`). It also deploys as-is to
+GitHub Pages by pointing Pages at the `web/` directory.
+
+
 ![FluidDynamicsSimulation_XrIAYd1XXk](https://github.com/user-attachments/assets/45049b6a-9c97-4af6-a54c-09fa668579f8)
  
 
@@ -37,8 +74,8 @@ https://github.com/user-attachments/assets/38ce9239-f8ac-43ae-98b4-1470b74f8598
 ### Cloning the Repository
 
 ```
-git clone https://github.com/in-c0/three-body-simulation.git
-cd three-body-simulation
+git clone https://github.com/in-c0/fluid-dynamics-simulation.git
+cd fluid-dynamics-simulation
 ```
 
 ### Setting Up Dependencies
@@ -114,8 +151,7 @@ wsl --unregister Ubuntu
  ```
 
 If you prefer to work on a non-WSL/Ubuntu environment, or if you've encountered unsolvable issues during installation, you can download the prerequisite libraries from the official websites:
-- [GFortran](https://fortran-lang.org/learn/os_setup/install_gfortran/)
-- [CMake](https://cmake.org/download/) (version 3.10 or higher)
+- [CMake](https://cmake.org/download/) (version 3.16 or higher)
 - [Vulkan](https://vulkan.lunarg.com/doc/sdk/1.3.290.0/linux/getting_started.html)
 
 
