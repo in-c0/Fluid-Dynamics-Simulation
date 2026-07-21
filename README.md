@@ -17,41 +17,47 @@ GPU-sided fluid dynamics simulation, with C++, Vulkan
 Smoothed-particle hydrodynamics (SPH) approach based on Navier-Stokes equations for incompressible flow
 
 
-## 🌊 Interactive web demo — "Navier–Stokes, Live"
+## 🌊 Learn it interactively — "Fluid Dynamics, One Idea at a Time"
 
-A zero-install, browser-based teaching companion lives in [`web/index.html`](web/index.html).
-Open it and **drag anywhere** to push the fluid; every wisp is the incompressible
-Navier–Stokes equation solving itself in real time on a WebGL2 grid.
+Rather than one big simulator, the maths is taught the way Khan Academy or Brilliant
+would: a scrollable lesson where **each concept gets its own small, focused, playable
+demo**, building up to the full Navier–Stokes equations.
 
-What it teaches:
+**▶ Open the lesson:** [`web/index.html`](web/index.html) &nbsp;·&nbsp; live via GitHub
+Pages at **https://in-c0.github.io/Fluid-Dynamics-Simulation/web/**
 
-- **The equation is the UI.** Click any term — advection `(u·∇)u`, viscous diffusion
-  `ν∇²u`, the pressure gradient `−∇p/ρ`, the external force `f`, or the
-  incompressibility constraint `∇·u = 0` — to see a plain-language explanation and
-  jump to the field it controls.
-- **Toggle what you see:** the dye, the velocity field (direction-as-hue), the
-  pressure, or the vorticity (curl).
-- **Feel the parameters:** sliders for viscosity, pressure-solver iterations, swirl
-  (vorticity confinement), time step, dye fade, and brush size.
-- **Guided tour** narrates the solver stage by stage.
+| # | Concept | What you play with | Live demo |
+|---|---------|--------------------|-----------|
+| 01 | **Velocity field** — a fluid is a field of little arrows, `u(x,y)` | Stir the field with your cursor | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#field) |
+| 02 | **Advection** `−(u·∇)u` — the flow carries things along | Release dye into two rotating gyres | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#advection) |
+| 03 | **Vorticity** `ω = ∇×u` — straight-looking flow can still spin | Shear a flow and watch paddle-wheels turn | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#vorticity) |
+| 04 | **Viscosity** `ν∇²u` — friction smears sharp motion smooth | Slide ν and watch a pattern melt | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#viscosity) |
+| 05 | **Pressure & incompressibility** `∇·u = 0` | Push fluid outward, then enforce the constraint | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#pressure) |
+| 06 | **The full equation** — all four terms, assembled | Drag a real GPU fluid sim | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#navier-stokes) |
 
-It's a lightweight [Stable Fluids](https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf)
-(semi-Lagrangian) implementation, mirroring the same stages as the Vulkan solver
-below — but runnable by anyone, instantly.
+The first five demos are lightweight Canvas 2D so each shows only its one idea; the
+capstone is a real WebGL2 [Stable Fluids](https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf)
+solver, mirroring the same stages as the native Vulkan simulator below. Prefer a single
+knob-filled playground? A full sandbox with every parameter lives in
+[`web/sandbox.html`](web/sandbox.html).
 
-### Running it
+> **Note:** GitHub renders README markdown without JavaScript, so the demos can't run
+> *inline* here — the links above open the live, interactive page.
 
-It's a single self-contained file with no build step or dependencies:
+### Running it locally
+
+Both pages are single self-contained files with no build step or dependencies:
 
 ```
 # from the repo root
 python3 -m http.server -d web 8000
-# then open http://localhost:8000
+# then open http://localhost:8000            (the lesson)
+#      or http://localhost:8000/sandbox.html (the full sandbox)
 ```
 
-Or just open `web/index.html` directly in a modern browser (Chrome, Firefox, or
-Safari — anything with WebGL2 + `EXT_color_buffer_float`). It also deploys as-is to
-GitHub Pages by pointing Pages at the `web/` directory.
+Or open `web/index.html` directly in a modern browser (Chrome, Firefox, or Safari —
+anything with WebGL2 + `EXT_color_buffer_float`). To publish it, enable **GitHub Pages**
+and point it at this repository (the demos live under `web/`).
 
 
 ![FluidDynamicsSimulation_XrIAYd1XXk](https://github.com/user-attachments/assets/45049b6a-9c97-4af6-a54c-09fa668579f8)
