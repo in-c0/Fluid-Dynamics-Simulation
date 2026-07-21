@@ -1,30 +1,19 @@
-Will refine my approach following the read:
-https://www.nature.com/articles/s41567-022-01788-5.epdf?sharing_token=ube1KozTYa5LaC9cu6hUTNRgN0jAjWel9jnR3ZoTv0NVOvMSmh5IwcU6Uxmom-KR2i-Pcwh_ETc6--qXhoO5LUGumCj0CT7GiaXaqsPr0FAEGtEInUThPONICh3K7Yk7QT9j7819reQGUGm4B7YVD61HSBoWLK0qWbTG__eeIcs%3D
-
-My goodness WebGL is surprisingly performant!!
-https://github.com/haxiomic/GPU-Fluid-Experiments
-https://github.com/mharrys/fluids-2d
-https://github.com/PavelDoGreat/WebGL-Fluid-Simulation
-
-1 Wallpapers project - Lorenz, Search algorithms, Mandelbrot, Ink drop, Fluid sim, all mesmerizing
-2 Combine with audio recognition for interesting effects
-
-
 # Fluid-Dynamics-Simulation
-GPU-sided fluid dynamics simulation, with C++, Vulkan
 
+**A GPU fluid-dynamics simulator in C++ / Vulkan — plus a zero-install, browser-based
+lesson that teaches the Navier–Stokes equations one playable idea at a time.**
 
-Smoothed-particle hydrodynamics (SPH) approach based on Navier-Stokes equations for incompressible flow
+## 🌊 Try the live demo — "Fluid Dynamics, One Idea at a Time"
 
+[![Interactive Navier–Stokes fluid lesson — click to launch](https://github.com/user-attachments/assets/45049b6a-9c97-4af6-a54c-09fa668579f8)](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/)
 
-## 🌊 Learn it interactively — "Fluid Dynamics, One Idea at a Time"
+**▶ Launch the interactive lesson → <https://in-c0.github.io/Fluid-Dynamics-Simulation/web/>**
+&nbsp;·&nbsp; open the full sandbox → <https://in-c0.github.io/Fluid-Dynamics-Simulation/web/sandbox.html>
+&nbsp;·&nbsp; source: [`web/index.html`](web/index.html)
 
 Rather than one big simulator, the maths is taught the way Khan Academy or Brilliant
 would: a scrollable lesson where **each concept gets its own small, focused, playable
 demo**, building up to the full Navier–Stokes equations.
-
-**▶ Open the lesson:** [`web/index.html`](web/index.html) &nbsp;·&nbsp; live via GitHub
-Pages at **https://in-c0.github.io/Fluid-Dynamics-Simulation/web/**
 
 | # | Concept | What you play with | Live demo |
 |---|---------|--------------------|-----------|
@@ -65,11 +54,13 @@ anything with WebGL2 + `EXT_color_buffer_float`). To publish it, enable **GitHub
 and point it at this repository (the demos live under `web/`).
 
 
-![FluidDynamicsSimulation_XrIAYd1XXk](https://github.com/user-attachments/assets/45049b6a-9c97-4af6-a54c-09fa668579f8)
- 
-
 https://github.com/user-attachments/assets/38ce9239-f8ac-43ae-98b4-1470b74f8598
 
+---
+
+## The native GPU simulator (C++ / Vulkan)
+
+Smoothed-particle hydrodynamics (SPH) approach based on Navier-Stokes equations for incompressible flow.
 
  # Inspiration / Reference
 - https://youtu.be/XmzBREkK8kY
@@ -221,6 +212,20 @@ How it builds up from the provided compute shader is as follows: (implemented fe
 **In radar:**
 - [ ] Workgroups for parallel processing
 - [ ] Memory barriers
+
+
+## Scratch notes / backlog
+
+Will refine my approach following the read:
+https://www.nature.com/articles/s41567-022-01788-5.epdf?sharing_token=ube1KozTYa5LaC9cu6hUTNRgN0jAjWel9jnR3ZoTv0NVOvMSmh5IwcU6Uxmom-KR2i-Pcwh_ETc6--qXhoO5LUGumCj0CT7GiaXaqsPr0FAEGtEInUThPONICh3K7Yk7QT9j7819reQGUGm4B7YVD61HSBoWLK0qWbTG__eeIcs%3D
+
+My goodness WebGL is surprisingly performant!!
+- https://github.com/haxiomic/GPU-Fluid-Experiments
+- https://github.com/mharrys/fluids-2d
+- https://github.com/PavelDoGreat/WebGL-Fluid-Simulation
+
+1. Wallpapers project — Lorenz, Search algorithms, Mandelbrot, Ink drop, Fluid sim, all mesmerizing
+2. Combine with audio recognition for interesting effects
 
 
 
