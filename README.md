@@ -17,6 +17,36 @@ GPU-sided fluid dynamics simulation, with C++, Vulkan
 Smoothed-particle hydrodynamics (SPH) approach based on Navier-Stokes equations for incompressible flow
 
 
+## 🌊 Learn it interactively — "Fluid Dynamics, One Idea at a Time"
+
+Rather than one big simulator, the maths is taught the way Khan Academy or Brilliant
+would: a scrollable lesson where **each concept gets its own small, focused, playable
+demo**, building up to the full Navier–Stokes equations.
+
+**▶ Open the live lesson:** **https://in-c0.github.io/Fluid-Dynamics-Simulation/web/**
+
+| # | Concept | What you play with | Live demo |
+|---|---------|--------------------|-----------|
+| 01 | **Velocity field** — a fluid is a field of little arrows, `u(x,y)` | Stir the field with your cursor | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#field) |
+| 02 | **Advection** `−(u·∇)u` — the flow carries things along | Release dye into two rotating gyres | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#advection) |
+| 03 | **Vorticity** `ω = ∇×u` — straight-looking flow can still spin | Shear a flow and watch paddle-wheels turn | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#vorticity) |
+| 04 | **Viscosity** `ν∇²u` — friction smears sharp motion smooth | Slide ν and watch a pattern melt | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#viscosity) |
+| 05 | **Pressure & incompressibility** `∇·u = 0` | Push fluid outward, then enforce the constraint | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#pressure) |
+| 06 | **The full equation** — all four terms, assembled | Drag the sim, and **tap each term** to toggle it live | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#navier-stokes) |
+| 07 | **Kármán vortex street** — why flags flutter and wires hum | Drag the obstacle and watch vortices shed | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#karman) |
+
+The first five demos are lightweight Canvas 2D so each shows only its one idea; the
+capstone and vortex-street demos are real WebGL2 [Stable Fluids](https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf)
+solvers, mirroring the same stages as the native Vulkan simulator below. A closing essay,
+**How it's built**, walks through the algorithm and weighs *why (and why not)* C++/Vulkan
+versus CUDA, WebGPU, OpenGL, and Rust for the native solver. Prefer a single knob-filled
+playground? A full sandbox with every parameter ships alongside the lesson.
+
+> **Status:** the lesson and sandbox live in [PR #1](https://github.com/in-c0/Fluid-Dynamics-Simulation/pull/1)
+> (`web/index.html` + `web/sandbox.html`, self-contained, no build step). The links above
+> go live once that PR merges and **GitHub Pages** is enabled for this repo.
+
+
 ![FluidDynamicsSimulation_XrIAYd1XXk](https://github.com/user-attachments/assets/45049b6a-9c97-4af6-a54c-09fa668579f8)
  
 
