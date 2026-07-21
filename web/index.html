@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Learn the maths behind fluid dynamics one idea at a time — velocity fields, advection, vorticity, viscosity, pressure — through small interactive demos, building up to the Navier-Stokes equations.">
+<title>Fluid Dynamics, One Idea at a Time</title>
+</head>
+<body>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --stage: #090d13;            /* demos are always dark so fields glow */
+    --stage-line: rgba(150,175,190,0.14);
+    --border: rgba(20,40,60,0.12);
+    --border-strong: rgba(20,40,60,0.22);
+    --text: #18212e;
+    --muted: #5a6675;
+    --faint: #8a95a3;
+    --accent: #0d9a8c;
+    --accent-soft: rgba(13,154,140,0.10);
+    --amber: #c07615;
+    --amber-soft: rgba(192,118,21,0.12);
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b0f16; --surface: #121824; --stage: #06090f; --stage-line: rgba(150,175,190,0.12);
+      --border: rgba(140,165,185,0.14); --border-strong: rgba(140,165,185,0.26);
+      --text: #dbe3ec; --muted: #93a0b0; --faint: #66727f;
+      --accent: #37d3c3; --accent-soft: rgba(55,211,195,0.12);
+      --amber: #ffb454; --amber-soft: rgba(255,180,84,0.14);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f7f9; --surface: #ffffff; --stage: #090d13; --stage-line: rgba(150,175,190,0.14);
+    --border: rgba(20,40,60,0.12); --border-strong: rgba(20,40,60,0.22);
+    --text: #18212e; --muted: #5a6675; --faint: #8a95a3;
+    --accent: #0d9a8c; --accent-soft: rgba(13,154,140,0.10); --amber: #c07615; --amber-soft: rgba(192,118,21,0.12);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b0f16; --surface: #121824; --stage: #06090f; --stage-line: rgba(150,175,190,0.12);
+    --border: rgba(140,165,185,0.14); --border-strong: rgba(140,165,185,0.26);
+    --text: #dbe3ec; --muted: #93a0b0; --faint: #66727f;
+    --accent: #37d3c3; --accent-soft: rgba(55,211,195,0.12); --amber: #ffb454; --amber-soft: rgba(255,180,84,0.14);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--font-sans); font-size: 17px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 22px; }
+
+  /* progress bar */
+  #progress { position: fixed; top: 0; left: 0; height: 3px; width: 0%; background: var(--accent); z-index: 50; transition: width 0.1s linear; }
+
+  /* theme toggle */
+  #theme {
+    position: fixed; top: 14px; right: 16px; z-index: 40;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    background: var(--surface); color: var(--muted); border: 1px solid var(--border);
+    border-radius: 999px; padding: 7px 12px; cursor: pointer;
+  }
+  #theme:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* hero */
+  header.hero { padding: 92px 0 40px; }
+  .hero .kicker {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 14px;
+  }
+  .hero h1 {
+    font-size: clamp(34px, 6vw, 52px); line-height: 1.05; letter-spacing: -0.02em; font-weight: 700;
+    margin: 0 0 18px; text-wrap: balance;
+  }
+  .hero p { font-size: 20px; line-height: 1.55; color: var(--muted); margin: 0 0 26px; text-wrap: pretty; }
+  .toc { display: flex; flex-wrap: wrap; gap: 8px; }
+  .toc a {
+    font-size: 13px; text-decoration: none; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px; transition: all 0.15s ease;
+  }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .toc a b { color: var(--faint); font-family: var(--font-mono); font-weight: 500; margin-right: 6px; }
+
+  /* lessons */
+  .lesson { padding: 46px 0; border-top: 1px solid var(--border); scroll-margin-top: 20px; }
+  .eyebrow {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .eyebrow .num { color: var(--faint); }
+  .lesson h2 { font-size: 29px; line-height: 1.15; letter-spacing: -0.015em; margin: 0 0 14px; text-wrap: balance; }
+  .lesson p { margin: 0 0 18px; color: var(--text); }
+  .lesson p.muted { color: var(--muted); }
+  .lesson strong { font-weight: 650; }
+  .accent { color: var(--accent); font-weight: 600; }
+
+  /* demo stage */
+  figure.stage { margin: 26px 0; }
+  .stage-frame {
+    background: var(--stage); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+    box-shadow: 0 14px 40px -24px rgba(0,0,0,0.6);
+  }
+  .stage-frame canvas { display: block; width: 100%; height: 320px; touch-action: none; cursor: crosshair; }
+  @media (max-width: 520px) { .stage-frame canvas { height: 260px; } }
+  .controls {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px;
+    padding: 13px 16px; border-top: 1px solid var(--stage-line); background: rgba(255,255,255,0.02);
+  }
+  .controls .ctl { display: flex; flex-direction: column; gap: 5px; min-width: 130px; flex: 1; }
+  .controls .ctl .lab {
+    display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.04em; color: #9fb0be;
+  }
+  .controls .ctl .lab .v { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .regime { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+  .regime.calm { color: #4fb0ff; }
+  .regime.street { color: var(--accent); }
+  .regime.turb { color: var(--amber); }
+  .controls input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 3px; background: rgba(150,175,190,0.28); outline: none; cursor: pointer; }
+  .controls input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 15px; height: 15px; border-radius: 50%; background: var(--accent); border: 2px solid #0b1017; box-shadow: 0 0 0 1px var(--accent); }
+  .controls input[type="range"]::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--accent); border: 2px solid #0b1017; }
+  .dbtn {
+    font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: #d7e2ea;
+    background: rgba(150,175,190,0.10); border: 1px solid rgba(150,175,190,0.24); border-radius: 9px;
+    padding: 8px 14px; cursor: pointer; transition: all 0.15s ease; white-space: nowrap;
+  }
+  .dbtn:hover { border-color: var(--accent); color: var(--accent); }
+  .dbtn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  figcaption { font-size: 13.5px; color: var(--muted); margin-top: 11px; padding-left: 2px; }
+  figcaption .try { color: var(--accent); font-weight: 600; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; margin-right: 7px; }
+
+  /* key idea */
+  .keyidea {
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 10px; padding: 16px 18px; margin: 24px 0;
+  }
+  .keyidea .ki-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin: 0 0 8px; }
+  .keyidea math { font-size: 1.3rem; color: var(--text); }
+  .keyidea .term { border-radius: 5px; padding: 1px 3px; background: var(--amber-soft); color: var(--amber); box-shadow: inset 0 -2px 0 var(--amber); }
+  .keyidea p { margin: 10px 0 0; font-size: 14.5px; color: var(--muted); }
+
+  .inline-eq { font-family: var(--serif); font-style: italic; }
+
+  /* interactive equation terms in the capstone */
+  .eq-term { cursor: pointer; border-radius: 5px; padding: 1px 3px; background: var(--amber-soft); transition: opacity 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease; }
+  .eq-term:hover { box-shadow: 0 0 0 1.5px var(--amber); }
+  .eq-term.sel { box-shadow: 0 0 0 2px var(--amber); }
+  .eq-term.off { background: transparent; opacity: 0.34; }
+  .term-note { margin: 14px 0 0 !important; font-size: 14px !important; color: var(--muted) !important; min-height: 2.6em; }
+  .term-note b { color: var(--text); }
+  .term-note .st { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 6px; border-radius: 5px; margin-right: 8px; }
+  .term-note .st.on { color: var(--accent); background: var(--accent-soft); }
+  .term-note .st.off { color: var(--amber); background: var(--amber-soft); }
+
+  /* capstone */
+  .capstone .stage-frame canvas { height: 420px; }
+  .final-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+  .final-cta a {
+    text-decoration: none; font-size: 14px; font-weight: 550; padding: 11px 18px; border-radius: 10px;
+    border: 1px solid var(--border-strong); color: var(--text); transition: all 0.15s ease;
+  }
+  .final-cta a.primary { background: var(--accent); color: #06090f; border-color: var(--accent); }
+  .final-cta a:hover { border-color: var(--accent); color: var(--accent); }
+  .final-cta a.primary:hover { color: #06090f; opacity: 0.9; }
+
+  footer { padding: 50px 0 80px; border-top: 1px solid var(--border); color: var(--faint); font-size: 13.5px; }
+  footer a { color: var(--muted); }
+
+  .fallback { display: none; padding: 40px 22px; text-align: center; color: var(--muted); }
+
+  .lesson h3 { font-size: 19px; margin: 30px 0 10px; letter-spacing: -0.01em; }
+  .tbl-wrap { overflow-x: auto; margin: 22px 0; border: 1px solid var(--border); border-radius: 10px; }
+  table.cmp { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 520px; }
+  table.cmp th, table.cmp td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.cmp tr:last-child td { border-bottom: none; }
+  table.cmp th { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); background: var(--surface); }
+  table.cmp td:first-child { font-weight: 600; white-space: nowrap; color: var(--text); }
+  table.cmp td strong { color: var(--accent); font-weight: 600; }
+  .verdict { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--amber); border-radius: 10px; padding: 16px 18px; margin: 24px 0; }
+  .verdict p { margin: 0; color: var(--muted); font-size: 15px; }
+  .verdict b { color: var(--text); }
+</style>
+
+<div id="progress"></div>
+<button id="theme" aria-label="Toggle colour theme">&#9788; Theme</button>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="kicker">A hands-on introduction</p>
+    <h1>How fluids move &mdash; from a single arrow to the full equations</h1>
+    <p>Almost every fluid you can watch move (smoke, water, coffee) follows the same short list of rules. This page builds them up one at a time, in the order you would add them to your own simulation. We start with the one thing every fluid solver stores: a grid of velocity arrows. Then we add each effect that makes a fluid behave like a fluid: how it carries itself along, how it spins, how friction smooths it, and how pressure stops it piling up. Every idea has a small demo to poke at, and by the end they combine into the <strong>Navier&ndash;Stokes equations</strong>, running live on your GPU.</p>
+    <nav class="toc">
+      <a href="#field"><b>01</b> Velocity fields</a>
+      <a href="#advection"><b>02</b> Advection</a>
+      <a href="#vorticity"><b>03</b> Vorticity</a>
+      <a href="#viscosity"><b>04</b> Viscosity</a>
+      <a href="#pressure"><b>05</b> Pressure</a>
+      <a href="#navier-stokes"><b>06</b> The full equation</a>
+      <a href="#karman"><b>07</b> Vortex street</a>
+      <a href="#implementation"><b>+</b> How it's built</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="lesson" id="field">
+    <p class="eyebrow"><span class="num">Lesson 01</span> &middot; The velocity field</p>
+    <h2>A fluid is a field of little arrows</h2>
+    <p>We don't track individual molecules. Instead the flow is a <strong>velocity field</strong>: at every point in space there is an arrow, <span class="inline-eq">u(x, y)</span>, giving the speed and direction of the fluid there. In code this is simply a 2D grid where every cell stores one velocity vector.</p>
+    <figure class="stage">
+      <div class="stage-frame">
+        <canvas id="cv-field"></canvas>
+      </div>
+      <figcaption><span class="try">Try it</span> Move your cursor over the grid: your pointer stirs the field, and every arrow responds. Colour shows speed.</figcaption>
+    </figure>
+    <p class="muted">Every rule that follows is just a recipe for how this grid of arrows changes from one time step to the next.</p>
+  </section>
+
+  <section class="lesson" id="advection">
+    <p class="eyebrow"><span class="num">Lesson 02</span> &middot; Advection</p>
+    <h2>The flow carries things along with it</h2>
+    <p>Drop dye into a river and the current sweeps it downstream, stretching it into ribbons. That transport of stuff, and of the fluid's own velocity, by the flow is called <strong>advection</strong>. The usual way to compute it: for each cell, step backwards along the velocity and copy whatever was there a moment ago (this is "semi-Lagrangian" advection, and it stays stable at any step size).</p>
+    <figure class="stage">
+      <div class="stage-frame">
+        <canvas id="cv-advection"></canvas>
+        <div class="controls">
+          <button class="dbtn" id="adv-release">Release dye</button>
+          <div class="ctl"><div class="lab"><span>Flow speed</span><span class="v" id="adv-speed-v"></span></div><input type="range" id="adv-speed" min="0.2" max="2" step="0.1" value="1"></div>
+        </div>
+      </div>
+      <figcaption><span class="try">Try it</span> Release dye into the two rotating gyres and watch it get carried and stretched, never created or destroyed, only moved.</figcaption>
+    </figure>
+    <div class="keyidea">
+      <p class="ki-label">In the equation</p>
+      <math display="block"><mrow><mo>&#8722;</mo><mo>(</mo><mi mathvariant="bold">u</mi><mo>&#8901;</mo><mo>&#8711;</mo><mo>)</mo><mi mathvariant="bold">u</mi></mrow></math>
+      <p>The fluid advects itself: this term says the velocity is carried along by the velocity. That feedback is what makes fluids swirl, and also what makes the equations hard to solve.</p>
+    </div>
+  </section>
+
+  <section class="lesson" id="vorticity">
+    <p class="eyebrow"><span class="num">Lesson 03</span> &middot; Vorticity</p>
+    <h2>Straight-looking flow can still spin</h2>
+    <p>Here the flow is perfectly horizontal: every arrow points sideways. But the top moves faster than the bottom (a <strong>shear</strong>), and that difference makes little paddle-wheels turn. That local spin is the <strong>vorticity</strong>, <span class="inline-eq">&#969; = &#8711;&times;u</span>. It is worth tracking because it is where the visible structure in a fluid lives.</p>
+    <figure class="stage">
+      <div class="stage-frame">
+        <canvas id="cv-vorticity"></canvas>
+        <div class="controls">
+          <div class="ctl"><div class="lab"><span>Shear strength</span><span class="v" id="vort-shear-v"></span></div><input type="range" id="vort-shear" min="-1" max="1" step="0.05" value="0.6"></div>
+        </div>
+      </div>
+      <figcaption><span class="try">Try it</span> Slide the shear to zero and the wheels stop: no shear, no spin. Flip it negative and they reverse.</figcaption>
+    </figure>
+    <p class="muted">Smoke rings, whirlpools, and the eddies trailing a canoe paddle are all concentrated vorticity. Many solvers even add a little of it back each step (called vorticity confinement) because coarse grids tend to smear these swirls away.</p>
+  </section>
+
+  <section class="lesson" id="viscosity">
+    <p class="eyebrow"><span class="num">Lesson 04</span> &middot; Viscosity &amp; diffusion</p>
+    <h2>Friction smears sharp motion smooth</h2>
+    <p>Real fluids have internal friction. A fast patch drags its slower neighbours along and gets pulled back, so sharp differences blur out over time. That smoothing is exactly the <strong>Laplacian</strong>, <span class="inline-eq">&#8711;&#178;</span>, and how strongly it acts is the <strong>viscosity</strong> <span class="inline-eq">&#957;</span>. In code it is a blur: repeatedly nudge each cell toward the average of its four neighbours.</p>
+    <figure class="stage">
+      <div class="stage-frame">
+        <canvas id="cv-viscosity"></canvas>
+        <div class="controls">
+          <div class="ctl"><div class="lab"><span>Viscosity &#957;</span><span class="v" id="visc-nu-v"></span></div><input type="range" id="visc-nu" min="0" max="1" step="0.02" value="0.35"></div>
+          <button class="dbtn" id="visc-reset">Reset pattern</button>
+        </div>
+      </div>
+      <figcaption><span class="try">Try it</span> Turn up <span class="inline-eq">&#957;</span> and the crisp pattern melts into a smooth blur. Water is barely viscous; honey, very.</figcaption>
+    </figure>
+    <div class="keyidea">
+      <p class="ki-label">In the equation</p>
+      <math display="block"><mrow><mo>+</mo><mi>&#957;</mi><msup><mo>&#8711;</mo><mn>2</mn></msup><mi mathvariant="bold">u</mi></mrow></math>
+      <p>The same Laplacian that blurs this pattern also diffuses the fluid's velocity. That is the viscous term.</p>
+    </div>
+  </section>
+
+  <section class="lesson" id="pressure">
+    <p class="eyebrow"><span class="num">Lesson 05</span> &middot; Pressure &amp; incompressibility</p>
+    <h2>You can't squash water into a corner</h2>
+    <p>Water is (almost) <strong>incompressible</strong>: you can't pile more into a spot without the same amount leaving. So the velocity field has to be <strong>divergence-free</strong>, <span class="inline-eq">&#8711;&#8901;u = 0</span>. Wherever the flow starts to pile up, <strong>pressure</strong> builds and pushes back to cancel it.</p>
+    <figure class="stage">
+      <div class="stage-frame">
+        <canvas id="cv-pressure"></canvas>
+        <div class="controls">
+          <button class="dbtn" id="pre-project" aria-pressed="false">Enforce &#8711;&#8901;u = 0</button>
+          <span style="font-size:12px;color:#9fb0be;font-family:var(--font-mono)">red = piling up &nbsp;&middot;&nbsp; blue = thinning out</span>
+        </div>
+      </div>
+      <figcaption><span class="try">Try it</span> Move your cursor over the canvas to push fluid outward, and red divergence blooms where it piles up. Now switch on the constraint: the pressure solve wipes it back to zero.</figcaption>
+    </figure>
+    <div class="keyidea">
+      <p class="ki-label">In the equation</p>
+      <math display="block"><mrow><mo>&#8722;</mo><mfrac><mn>1</mn><mi>&#961;</mi></mfrac><mo>&#8711;</mo><mi>p</mi></mrow></math>
+      <p>Solving for the pressure that keeps <span class="inline-eq">&#8711;&#8901;u = 0</span> everywhere is the <em>projection step</em>. It is a Poisson equation, and it is usually the slowest part of a solver, so it is the first place people optimise.</p>
+    </div>
+  </section>
+
+  <section class="lesson capstone" id="navier-stokes">
+    <p class="eyebrow"><span class="num">Lesson 06</span> &middot; Putting it together</p>
+    <h2>The Navier&ndash;Stokes equations</h2>
+    <p>You have now met the four effects on the right-hand side. Written together, they say how the velocity at each cell changes over the next time step. That statement, plus the incompressibility line beneath it, is the <strong>Navier&ndash;Stokes equations</strong>:</p>
+    <div class="keyidea">
+      <p class="ki-label">Conservation of momentum &amp; mass</p>
+      <math display="block">
+        <mrow>
+          <mfrac><mrow><mo>&#8706;</mo><mi mathvariant="bold">u</mi></mrow><mrow><mo>&#8706;</mo><mi>t</mi></mrow></mfrac><mo>=</mo>
+          <mrow class="eq-term" id="eqt-adv" role="button" tabindex="0" aria-label="advection term, toggle in simulation"><mo>&#8722;</mo><mo>(</mo><mi mathvariant="bold">u</mi><mo>&#8901;</mo><mo>&#8711;</mo><mo>)</mo><mi mathvariant="bold">u</mi></mrow>
+          <mrow class="eq-term" id="eqt-pre" role="button" tabindex="0" aria-label="pressure term, toggle in simulation"><mo>&#8722;</mo><mfrac><mn>1</mn><mi>&#961;</mi></mfrac><mo>&#8711;</mo><mi>p</mi></mrow>
+          <mrow class="eq-term" id="eqt-visc" role="button" tabindex="0" aria-label="viscosity term, toggle in simulation"><mo>+</mo><mi>&#957;</mi><msup><mo>&#8711;</mo><mn>2</mn></msup><mi mathvariant="bold">u</mi></mrow>
+          <mrow class="eq-term" id="eqt-force" role="button" tabindex="0" aria-label="force term"><mo>+</mo><mi mathvariant="bold">f</mi></mrow>
+        </mrow>
+      </math>
+      <math display="block"><mrow><mo>&#8711;</mo><mo>&#8901;</mo><mi mathvariant="bold">u</mi><mo>=</mo><mn>0</mn></mrow></math>
+      <p>Read the right side as a to-do list your solver runs on every cell, every time step: carry the velocity along (<b>advection</b>), push back on any pile-up (<b>pressure</b>), blur toward the neighbours (<b>viscosity</b>), and add whatever force <span class="inline-eq">f</span> you supply. The bottom line is the incompressibility check. <b>Tap a highlighted term to switch it off in the live simulation</b> and watch what that step was doing.</p>
+      <p class="term-note" id="term-note"><span class="st on">all terms on</span>The simulation below is solving the whole equation. Turn a term off to isolate its job.</p>
+    </div>
+    <figure class="stage">
+      <div class="stage-frame">
+        <canvas id="cv-sim"></canvas>
+        <div class="controls">
+          <button class="dbtn" id="sim-reset">Reset</button>
+          <div class="ctl"><div class="lab"><span>Swirl</span><span class="v" id="sim-curl-v"></span></div><input type="range" id="sim-curl" min="0" max="40" step="1" value="24"></div>
+          <div class="ctl"><div class="lab"><span>Viscosity &#957;</span><span class="v" id="sim-visc-v"></span></div><input type="range" id="sim-visc" min="0" max="1" step="0.02" value="0"></div>
+        </div>
+      </div>
+      <figcaption><span class="try">Try it</span> Drag on the canvas to inject dye and set the fluid moving. This is a real GPU solver running the equation above; then tap the equation's terms to feel each one's contribution.</figcaption>
+    </figure>
+    <div class="final-cta">
+      <a class="primary" href="sandbox.html">Open the full sandbox &rarr;</a>
+      <a href="#karman">Next: the vortex street &darr;</a>
+    </div>
+  </section>
+
+  <section class="lesson" id="karman">
+    <p class="eyebrow"><span class="num">Lesson 07</span> &middot; The K&aacute;rm&aacute;n vortex street</p>
+    <h2>Why a flag flutters and a wire hums</h2>
+    <p>So far the fluid has only reacted to you. Now watch it move on its own. Send a steady stream past a blunt obstacle like a chimney or a wire. At low speed the stream parts and closes behind it, calm and symmetric. Past a certain speed that wake goes unstable: the obstacle sheds spinning vortices, first from one side, then the other, in a staggered double row trailing downstream. This is the <strong>K&aacute;rm&aacute;n vortex street</strong>.</p>
+    <p>The alternating vortices tug the obstacle sideways at a steady beat. That is what makes a flag ripple and a power line hum in the wind. If the shedding frequency matches a structure's own natural sway it can shake the structure apart, which is part of what happened to the Tacoma Narrows Bridge in 1940.</p>
+    <figure class="stage">
+      <div class="stage-frame">
+        <canvas id="cv-karman"></canvas>
+        <div class="controls">
+          <div class="ctl"><div class="lab"><span>Reynolds number</span><span><span class="v" id="kar-re-v"></span> <span id="kar-regime" class="regime"></span></span></div><input type="range" id="kar-re" min="20" max="420" step="5" value="130"></div>
+          <button class="dbtn" id="kar-reset">Reset flow</button>
+        </div>
+      </div>
+      <figcaption><span class="try">Try it</span> Flow runs left to right; colour is vorticity (<span style="color:#e8663c">clockwise</span> / <span style="color:#3a86ff">counter-clockwise</span>). Sweep the <b>Reynolds number</b> to move through the regimes: low Re gives a smooth, attached wake; the middle band sheds the clean alternating street; crank it up and the wake breaks into busy turbulence. <b>Drag the circle</b> to disturb it at any time.</figcaption>
+    </figure>
+    <div class="keyidea">
+      <p class="ki-label">The one number that decides</p>
+      <math display="block"><mrow><mi>Re</mi><mo>=</mo><mfrac><mrow><mi>U</mi><mi>L</mi></mrow><mi>&#957;</mi></mfrac></mrow></math>
+      <p>Which regime you get is set almost entirely by the <b>Reynolds number</b>: the ratio of inertia (flow speed <span class="inline-eq">U</span> times obstacle size <span class="inline-eq">L</span>) to viscosity <span class="inline-eq">&#957;</span>. It is dimensionless, so a marble in syrup and a submarine in the sea behave alike if their Reynolds numbers match. The street lives roughly between <span class="inline-eq">Re</span> &#8776; 50 and a few hundred; below that the wake is steady, above it turns turbulent.</p>
+    </div>
+  </section>
+
+  <section class="lesson" id="implementation">
+    <p class="eyebrow"><span class="num">Under the hood</span></p>
+    <h2>How this is simulated, and why C++ and Vulkan</h2>
+    <p>Every demo here uses the same recipe, the one Jos Stam published in 1999 as <em>Stable Fluids</em>. Space is a regular grid, and each frame the velocity field runs through a short pipeline: <strong>advect</strong> it along itself, optionally <strong>diffuse</strong> it for viscosity, then <strong>project</strong> it (solve for the pressure that removes any divergence) so the flow stays incompressible. The pressure solve is a Poisson equation, handled by repeatedly averaging each cell with its neighbours (a Jacobi iteration). That is the whole solver: five short passes over a grid.</p>
+    <p>The key fact for performance is that <strong>every cell updates from its immediate neighbours and nothing else</strong>. There is no global dependency, so a million cells can be updated at once instead of one after another. That is exactly the kind of problem a GPU is built for: thousands of tiny cores running the same short program over different data, while a CPU mostly works through cells in sequence. This page is the proof; it runs the identical algorithm on your GPU through WebGL2.</p>
+
+    <h3>So why does the native version reach for C++ and Vulkan?</h3>
+    <p>Once the whole thing runs on the GPU, you want the most direct, cross-vendor control the hardware offers, and you want the simulation and its rendering on <em>one</em> API so the fluid never makes a slow round-trip back to the CPU just to be drawn. Vulkan gives that: explicit control of memory and synchronisation, real compute shaders writing into storage buffers, low driver overhead, and it renders too. Here is how the realistic options compare:</p>
+    <div class="tbl-wrap">
+      <table class="cmp">
+        <thead><tr><th>Choice</th><th>Why you'd pick it</th><th>What it costs</th></tr></thead>
+        <tbody>
+          <tr><td>Vulkan + C++</td><td><strong>Cross-vendor</strong> (AMD, Intel, NVIDIA, mobile); compute and rendering in one API with no CPU round-trip; explicit, low-overhead control</td><td>Enormous boilerplate; you manage memory, queues and synchronisation by hand</td></tr>
+          <tr><td>CUDA</td><td>By far the friendliest GPU-compute tooling and libraries; great profilers</td><td><strong>NVIDIA-only</strong>; you still need a separate graphics API to display the result</td></tr>
+          <tr><td>OpenGL / WebGL</td><td>Much simpler; portable; WebGL needs zero install, ideal for teaching (it runs this page)</td><td>Sandboxed and higher-overhead; limited compute and precision; not built for a research-grade solver</td></tr>
+          <tr><td>WebGPU</td><td>Modern, portable, real compute shaders, runs in a browser <em>and</em> natively</td><td>Still maturing; less raw control and headroom than native Vulkan</td></tr>
+          <tr><td>Rust + wgpu / ash</td><td>Memory safety without a garbage collector; the same GPU power as C++</td><td>Younger ecosystem; the canonical Vulkan SDK, samples and tutorials are still C/C++-first</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>C++ earns its place on the native side for practical reasons: the official Vulkan SDK is C/C++, so the samples, headers and tooling all assume it; you get manual memory control with no garbage-collector pauses mid-frame; and it links straight to the usual graphics libraries (GLFW for windowing, GLM for maths). The cost is real: it is verbose and unforgiving, and a modern project might reasonably pick Rust to keep the same speed with far fewer memory bugs.</p>
+    <div class="verdict">
+      <p><b>An honest verdict.</b> If the only goal were to <em>teach</em> fluid dynamics, C++ and Vulkan would be overkill; a WebGPU or WebGL page like this one reaches far more people with a fraction of the code. Vulkan pays off when the goal shifts from explaining to <em>pushing the hardware</em>: maximum control, cross-vendor performance, and one pipeline for both compute and rendering at large grid sizes. That is why this repository keeps both: a browser page to build the intuition, and a native Vulkan engine to take it as far as the silicon allows. If you are writing your first fluid solver, start where this page starts (a grid, five passes, WebGL or WebGPU), and reach for Vulkan only once you actually need the headroom.</p>
+    </div>
+    <div class="final-cta">
+      <a class="primary" href="https://github.com/in-c0/Fluid-Dynamics-Simulation">Read the C++/Vulkan source &rarr;</a>
+      <a href="sandbox.html">Open the full sandbox</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <p>Built with WebGL2 and a little Canvas 2D. The lessons here mirror the stages of the native C++/Vulkan simulator in this repository. Equations rendered with MathML, no libraries.</p>
+</footer>
+
+<script>
+"use strict";
+(function () {
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- shared helpers ---------- */
+  function setupCanvas(cv) {
+    const ctx = cv.getContext("2d");
+    function fit() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = cv.clientWidth, h = cv.clientHeight;
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { w, h };
+    }
+    return { ctx, fit };
+  }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+  // speed -> colour (teal to amber)
+  function speedColor(t, alpha) {
+    t = clamp(t, 0, 1);
+    const c1 = [40, 90, 105], c2 = [55, 211, 195], c3 = [255, 180, 84];
+    let r, g, b;
+    if (t < 0.5) { const u = t / 0.5; r = lerp(c1[0], c2[0], u); g = lerp(c1[1], c2[1], u); b = lerp(c1[2], c2[2], u); }
+    else { const u = (t - 0.5) / 0.5; r = lerp(c2[0], c3[0], u); g = lerp(c2[1], c3[1], u); b = lerp(c2[2], c3[2], u); }
+    return `rgba(${r | 0},${g | 0},${b | 0},${alpha == null ? 1 : alpha})`;
+  }
+  function pointerPos(cv, e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height }; }
+
+  /* master loop: only ticks demos that are on-screen */
+  const demos = [];
+  function register(d) { d.visible = false; demos.push(d); if (d.el) io.observe(d.el); }
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((en) => { const d = demos.find((x) => x.el === en.target); if (d) { d.visible = en.isIntersecting; if (en.isIntersecting && d.onShow) d.onShow(); } });
+  }, { threshold: 0.12 });
+  let last = 0;
+  function loop(now) {
+    const dt = Math.min((now - last) / 1000 || 0.016, 0.05); last = now;
+    for (const d of demos) { if (d.visible || d.always) { try { d.tick(dt); } catch (e) {} } }
+    requestAnimationFrame(loop);
+  }
+
+  /* ===================================================================
+     Lesson 01 — velocity field (arrows following the pointer)
+     =================================================================== */
+  (function () {
+    const cv = document.getElementById("cv-field"); if (!cv) return;
+    const { ctx, fit } = setupCanvas(cv); let dim = fit();
+    window.addEventListener("resize", () => { dim = fit(); });
+    let mx = 0.5, my = 0.5, active = false, t = 0;
+    cv.addEventListener("pointermove", (e) => { const p = pointerPos(cv, e); mx = p.x; my = p.y; active = true; });
+    cv.addEventListener("pointerleave", () => { active = false; });
+    function field(x, y) {
+      // gentle ambient rotation + a vortex that follows the pointer
+      let vx = -(y - 0.5) * 0.5 + (x - 0.5) * 0.06 * Math.sin(t * 0.3);
+      let vy = (x - 0.5) * 0.5 + (y - 0.5) * 0.06 * Math.sin(t * 0.3);
+      const dx = x - mx, dy = y - my, d2 = dx * dx + dy * dy;
+      const s = (active ? 1 : 0.35) * Math.exp(-d2 / 0.05);
+      vx += -dy * 6 * s; vy += dx * 6 * s;
+      return [vx, vy];
+    }
+    function tick(dtt) {
+      t += dtt;
+      ctx.clearRect(0, 0, dim.w, dim.h);
+      const cols = 22, rows = Math.round(cols * dim.h / dim.w);
+      const gx = dim.w / cols, gy = dim.h / rows, len = Math.min(gx, gy) * 0.9;
+      for (let j = 0; j <= rows; j++) for (let i = 0; i <= cols; i++) {
+        const nx = i / cols, ny = j / rows, px = nx * dim.w, py = ny * dim.h;
+        const [vx, vy] = field(nx, ny); const mag = Math.hypot(vx, vy);
+        const ux = vx / (mag + 1e-5), uy = vy / (mag + 1e-5);
+        const L = clamp(mag * 0.28, 0.3, 1) * len;
+        const col = speedColor(mag / 3.2, 0.95);
+        ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2;
+        const ex = px + ux * L, ey = py + uy * L;
+        ctx.beginPath(); ctx.moveTo(px - ux * L * 0.3, py - uy * L * 0.3); ctx.lineTo(ex, ey); ctx.stroke();
+        // arrowhead
+        const a = Math.atan2(uy, ux), hs = L * 0.32;
+        ctx.beginPath(); ctx.moveTo(ex, ey);
+        ctx.lineTo(ex - hs * Math.cos(a - 0.5), ey - hs * Math.sin(a - 0.5));
+        ctx.lineTo(ex - hs * Math.cos(a + 0.5), ey - hs * Math.sin(a + 0.5));
+        ctx.closePath(); ctx.fill();
+      }
+    }
+    register({ el: cv, tick });
+  })();
+
+  /* ===================================================================
+     Lesson 02 — advection (particles in a double-gyre)
+     =================================================================== */
+  (function () {
+    const cv = document.getElementById("cv-advection"); if (!cv) return;
+    const { ctx, fit } = setupCanvas(cv); let dim = fit();
+    window.addEventListener("resize", () => { dim = fit(); ctx.fillStyle = "#06090f"; ctx.fillRect(0, 0, dim.w, dim.h); });
+    const speedEl = document.getElementById("adv-speed"), speedV = document.getElementById("adv-speed-v");
+    let speed = 1; const paintSpeed = () => speedV.textContent = speed.toFixed(1) + "×";
+    speedEl.addEventListener("input", () => { speed = +speedEl.value; paintSpeed(); }); paintSpeed();
+    const A = 1.0, P = [];
+    function vel(x, y) { // steady double gyre on [0,1]^2
+      return [A * Math.PI * Math.sin(Math.PI * x) * Math.cos(Math.PI * y),
+             -A * Math.PI * Math.cos(Math.PI * x) * Math.sin(Math.PI * y)];
+    }
+    function release(cx, cy) {
+      for (let i = 0; i < 220; i++) {
+        const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * 0.06;
+        P.push({ x: clamp(cx + Math.cos(a) * r, 0.02, 0.98), y: clamp(cy + Math.sin(a) * r, 0.02, 0.98), h: Math.random() });
+      }
+      while (P.length > 2600) P.shift();
+    }
+    document.getElementById("adv-release").addEventListener("click", () => release(0.5, 0.5));
+    let seeded = false;
+    function onShow() { if (!seeded) { seeded = true; ctx.fillStyle = "#06090f"; ctx.fillRect(0, 0, dim.w, dim.h); release(0.28, 0.5); release(0.72, 0.5); } }
+    function tick(dtt) {
+      // fade trails
+      ctx.fillStyle = "rgba(6,9,15,0.11)"; ctx.fillRect(0, 0, dim.w, dim.h);
+      const h = Math.min(dtt, 0.033) * speed * 0.6;
+      for (let k = 0; k < P.length; k++) {
+        const p = P[k];
+        const [ax, ay] = vel(p.x, p.y);           // RK2
+        const [bx, by] = vel(p.x + ax * h * 0.5, p.y + ay * h * 0.5);
+        p.x += bx * h; p.y += by * h;
+        if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) { p.x = clamp(p.x, 0, 1); p.y = clamp(p.y, 0, 1); }
+        const sp = Math.hypot(bx, by);
+        ctx.fillStyle = speedColor(0.25 + sp * 0.12, 0.9);
+        ctx.fillRect(p.x * dim.w, p.y * dim.h, 2.2, 2.2);
+      }
+    }
+    register({ el: cv, tick, onShow });
+  })();
+
+  /* ===================================================================
+     Lesson 03 — vorticity (shear flow + paddle wheels)
+     =================================================================== */
+  (function () {
+    const cv = document.getElementById("cv-vorticity"); if (!cv) return;
+    const { ctx, fit } = setupCanvas(cv); let dim = fit();
+    window.addEventListener("resize", () => { dim = fit(); });
+    const shEl = document.getElementById("vort-shear"), shV = document.getElementById("vort-shear-v");
+    let shear = 0.6; const paint = () => shV.textContent = shear.toFixed(2);
+    shEl.addEventListener("input", () => { shear = +shEl.value; paint(); }); paint();
+    let ang = 0;
+    function tick(dtt) {
+      ang += (-shear) * dtt * 2.2;
+      ctx.clearRect(0, 0, dim.w, dim.h);
+      // background shear flow arrows (u grows with height)
+      const rows = 9, cols = 12;
+      for (let j = 0; j < rows; j++) {
+        const ny = (j + 0.5) / rows, u = shear * (ny - 0.5) * 2;
+        for (let i = 0; i < cols; i++) {
+          const nx = (i + 0.5) / cols, px = nx * dim.w, py = ny * dim.h;
+          const L = clamp(Math.abs(u), 0.04, 1) * (dim.w / cols) * 0.42 * Math.sign(u || 1);
+          ctx.strokeStyle = "rgba(120,150,165,0.35)"; ctx.lineWidth = 1.4;
+          ctx.beginPath(); ctx.moveTo(px - L, py); ctx.lineTo(px + L, py); ctx.stroke();
+          if (Math.abs(u) > 0.05) { const d = Math.sign(u); ctx.beginPath(); ctx.moveTo(px + L, py); ctx.lineTo(px + L - d * 5, py - 3); ctx.lineTo(px + L - d * 5, py + 3); ctx.closePath(); ctx.fillStyle = "rgba(120,150,165,0.5)"; ctx.fill(); }
+        }
+      }
+      // paddle wheels rotating at the local vorticity
+      const wr = 3, wc = 4, R = Math.min(dim.w / wc, dim.h / wr) * 0.26;
+      for (let j = 0; j < wr; j++) for (let i = 0; i < wc; i++) {
+        const px = (i + 0.5) / wc * dim.w, py = (j + 0.5) / wr * dim.h;
+        ctx.save(); ctx.translate(px, py); ctx.rotate(ang);
+        ctx.strokeStyle = speedColor(0.55, 0.95); ctx.lineWidth = 2.4;
+        for (let s = 0; s < 4; s++) { ctx.rotate(Math.PI / 2); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(R, 0); ctx.stroke(); ctx.beginPath(); ctx.arc(R, 0, 2.4, 0, 6.283); ctx.fillStyle = speedColor(0.75, 1); ctx.fill(); }
+        ctx.restore();
+        ctx.beginPath(); ctx.arc(px, py, 2, 0, 6.283); ctx.fillStyle = "#cfe0e8"; ctx.fill();
+      }
+    }
+    register({ el: cv, tick });
+  })();
+
+  /* ===================================================================
+     Lesson 04 — viscosity (2D diffusion of a scalar on a small grid)
+     =================================================================== */
+  (function () {
+    const cv = document.getElementById("cv-viscosity"); if (!cv) return;
+    const { ctx, fit } = setupCanvas(cv); let dim = fit();
+    window.addEventListener("resize", () => { dim = fit(); });
+    const N = 76; let f = new Float32Array(N * N), g = new Float32Array(N * N);
+    const off = document.createElement("canvas"); off.width = N; off.height = N; const octx = off.getContext("2d"); const img = octx.createImageData(N, N);
+    const nuEl = document.getElementById("visc-nu"), nuV = document.getElementById("visc-nu-v");
+    let nu = 0.35; const paint = () => nuV.textContent = nu === 0 ? "0 (none)" : nu.toFixed(2);
+    nuEl.addEventListener("input", () => { nu = +nuEl.value; paint(); }); paint();
+    function seed() {
+      f.fill(0);
+      // a sharp structured pattern: blobs + bars
+      function disk(cx, cy, r, v) { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { if ((x - cx) ** 2 + (y - cy) ** 2 < r * r) f[y * N + x] = v; } }
+      disk(N * 0.3, N * 0.35, N * 0.12, 1); disk(N * 0.7, N * 0.35, N * 0.12, 1);
+      disk(N * 0.5, N * 0.68, N * 0.14, 1);
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { if (Math.abs(y - N * 0.5) < N * 0.02) f[y * N + x] = Math.max(f[y * N + x], 0.85); }
+    }
+    seed(); document.getElementById("visc-reset").addEventListener("click", seed);
+    function tick() {
+      const rate = nu * 0.22;
+      if (rate > 0.0001) {
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const i = y * N + x;
+          const l = f[y * N + Math.max(0, x - 1)], r = f[y * N + Math.min(N - 1, x + 1)];
+          const u = f[Math.max(0, y - 1) * N + x], d = f[Math.min(N - 1, y + 1) * N + x];
+          g[i] = f[i] + rate * (l + r + u + d - 4 * f[i]);
+        }
+        const tmp = f; f = g; g = tmp;
+      }
+      // render
+      for (let i = 0; i < N * N; i++) {
+        const v = clamp(f[i], 0, 1), c = speedColorArr(v * 0.85 + 0.05);
+        img.data[i * 4] = c[0]; img.data[i * 4 + 1] = c[1]; img.data[i * 4 + 2] = c[2]; img.data[i * 4 + 3] = 255;
+      }
+      octx.putImageData(img, 0, 0);
+      ctx.imageSmoothingEnabled = true; ctx.clearRect(0, 0, dim.w, dim.h); ctx.drawImage(off, 0, 0, dim.w, dim.h);
+    }
+    function speedColorArr(t) {
+      t = clamp(t, 0, 1); const c1 = [8, 14, 22], c2 = [45, 190, 178], c3 = [255, 200, 130]; let r, g2, b;
+      if (t < 0.55) { const u = t / 0.55; r = lerp(c1[0], c2[0], u); g2 = lerp(c1[1], c2[1], u); b = lerp(c1[2], c2[2], u); }
+      else { const u = (t - 0.55) / 0.45; r = lerp(c2[0], c3[0], u); g2 = lerp(c2[1], c3[1], u); b = lerp(c2[2], c3[2], u); }
+      return [r | 0, g2 | 0, b | 0];
+    }
+    register({ el: cv, tick });
+  })();
+
+  /* ===================================================================
+     Lesson 05 — incompressibility (divergence + CPU projection)
+     =================================================================== */
+  (function () {
+    const cv = document.getElementById("cv-pressure"); if (!cv) return;
+    const { ctx, fit } = setupCanvas(cv); let dim = fit();
+    window.addEventListener("resize", () => { dim = fit(); });
+    const N = 46, N2 = N * N;
+    let u = new Float32Array(N2), v = new Float32Array(N2), div = new Float32Array(N2), p = new Float32Array(N2), p2 = new Float32Array(N2);
+    const off = document.createElement("canvas"); off.width = N; off.height = N; const octx = off.getContext("2d"); const img = octx.createImageData(N, N);
+    let project = false;
+    const pb = document.getElementById("pre-project");
+    pb.addEventListener("click", () => { project = !project; pb.setAttribute("aria-pressed", String(project)); });
+    let px = -1, py = -1, active = false;
+    const track = (e) => { const q = pointerPos(cv, e); px = q.x; py = q.y; active = true; };
+    cv.addEventListener("pointerdown", track);
+    cv.addEventListener("pointermove", track);
+    cv.addEventListener("pointerleave", () => { active = false; });
+    function idx(x, y) { return y * N + x; }
+    function inject() {
+      // gentle drift keeps arrows alive; the pointer is a source that pushes fluid outward
+      for (let i = 0; i < N2; i++) { u[i] *= 0.86; v[i] *= 0.86; }
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) u[idx(x, y)] += 0.05;
+      if (active && px >= 0) {
+        const cx = px * N, cy = py * N;
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const dx = x - cx, dy = y - cy, d2 = dx * dx + dy * dy, w = Math.exp(-d2 / 30);
+          const inv = 1 / Math.sqrt(d2 + 1);
+          u[idx(x, y)] += dx * inv * 3.4 * w; v[idx(x, y)] += dy * inv * 3.4 * w;
+        }
+      }
+    }
+    function computeDiv() { for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) div[idx(x, y)] = 0.5 * (u[idx(x + 1, y)] - u[idx(x - 1, y)] + v[idx(x, y + 1)] - v[idx(x, y - 1)]); }
+    function projectField() {
+      p.fill(0);
+      for (let k = 0; k < 24; k++) {
+        for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++)
+          p2[idx(x, y)] = 0.25 * (p[idx(x - 1, y)] + p[idx(x + 1, y)] + p[idx(x, y - 1)] + p[idx(x, y + 1)] - div[idx(x, y)]);
+        const t = p; p = p2; p2 = t;
+      }
+      for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) { u[idx(x, y)] -= 0.5 * (p[idx(x + 1, y)] - p[idx(x - 1, y)]); v[idx(x, y)] -= 0.5 * (p[idx(x, y + 1)] - p[idx(x, y - 1)]); }
+    }
+    function tick() {
+      inject(); computeDiv();
+      if (project) { projectField(); computeDiv(); }
+      // draw divergence heatmap
+      for (let i = 0; i < N2; i++) {
+        const d = clamp(div[i] * 3.5, -1, 1); let r, g, b;
+        if (d > 0) { r = lerp(14, 235, d); g = lerp(18, 90, d); b = lerp(26, 60, d); }
+        else { r = lerp(14, 60, -d); g = lerp(18, 120, -d); b = lerp(26, 235, -d); }
+        img.data[i * 4] = r; img.data[i * 4 + 1] = g; img.data[i * 4 + 2] = b; img.data[i * 4 + 3] = 255;
+      }
+      octx.putImageData(img, 0, 0);
+      ctx.imageSmoothingEnabled = true; ctx.drawImage(off, 0, 0, dim.w, dim.h);
+      // sparse velocity arrows
+      const step = 5;
+      ctx.strokeStyle = "rgba(220,232,240,0.5)"; ctx.lineWidth = 1.2;
+      for (let y = step; y < N; y += step) for (let x = step; x < N; x += step) {
+        const ux = u[idx(x, y)], vy = v[idx(x, y)], m = Math.hypot(ux, vy); if (m < 0.02) continue;
+        const sx = x / N * dim.w, sy = y / N * dim.h, L = clamp(m * 6, 2, 12);
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + ux / m * L, sy + vy / m * L); ctx.stroke();
+      }
+    }
+    register({ el: cv, tick });
+  })();
+
+  /* ===================================================================
+     Lesson 06 — capstone: compact WebGL2 stable-fluids sim
+     =================================================================== */
+  (function () {
+    const cv = document.getElementById("cv-sim"); if (!cv) return;
+    const gl = cv.getContext("webgl2", { alpha: false, antialias: false, depth: false, stencil: false });
+    if (!gl || !gl.getExtension("EXT_color_buffer_float")) {
+      cv.parentElement.innerHTML = '<div class="fallback" style="display:block">Your browser can\'t run the WebGL2 float pipeline for the live sim, but the lessons above show every piece of it. Try a recent desktop browser.</div>';
+      return;
+    }
+    const cfg = { SIM: 140, DYE: 480, iters: 22, curl: 24, visc: 0, viscIters: 14, dt: 1, dyeDiss: 1.1, velDiss: 0.2, radius: 0.22, force: 5200, project: true, advectSelf: true };
+    const curlEl = document.getElementById("sim-curl"), curlV = document.getElementById("sim-curl-v");
+    const viscEl = document.getElementById("sim-visc"), viscV = document.getElementById("sim-visc-v");
+    curlV.textContent = cfg.curl; viscV.textContent = "0";
+    curlEl.addEventListener("input", () => { cfg.curl = +curlEl.value; curlV.textContent = cfg.curl; });
+    viscEl.addEventListener("input", () => { cfg.visc = +viscEl.value; viscV.textContent = cfg.visc === 0 ? "0" : cfg.visc.toFixed(2); });
+
+    const VERT = `#version 300 es
+      precision highp float; in vec2 aP; out vec2 vUv,vL,vR,vT,vB; uniform vec2 tx;
+      void main(){ vUv=aP*0.5+0.5; vL=vUv-vec2(tx.x,0.); vR=vUv+vec2(tx.x,0.); vT=vUv+vec2(0.,tx.y); vB=vUv-vec2(0.,tx.y); gl_Position=vec4(aP,0.,1.); }`;
+    function sh(t, s) { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(o); return o; }
+    const vs = sh(gl.VERTEX_SHADER, VERT);
+    function prog(f) { const p = gl.createProgram(); gl.attachShader(p, vs); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, f)); gl.linkProgram(p); const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let i = 0; i < n; i++) { const nm = gl.getActiveUniform(p, i).name; u[nm] = gl.getUniformLocation(p, nm); } return { p, u }; }
+    const H = `#version 300 es
+      precision highp float; precision highp sampler2D; in vec2 vUv,vL,vR,vT,vB; out vec4 o;`;
+    const pAdv = prog(`${H} uniform sampler2D uV,uS; uniform vec2 tx; uniform float dt,dis; void main(){ vec2 c=vUv-dt*texture(uV,vUv).xy*tx; o=texture(uS,c)/(1.+dis*dt); }`);
+    const pDiv = prog(`${H} uniform sampler2D uV; void main(){ float L=texture(uV,vL).x,R=texture(uV,vR).x,T=texture(uV,vT).y,B=texture(uV,vB).y; vec2 C=texture(uV,vUv).xy; if(vL.x<0.)L=-C.x; if(vR.x>1.)R=-C.x; if(vT.y>1.)T=-C.y; if(vB.y<0.)B=-C.y; o=vec4(0.5*(R-L+T-B),0,0,1); }`);
+    const pCurl = prog(`${H} uniform sampler2D uV; void main(){ float L=texture(uV,vL).y,R=texture(uV,vR).y,T=texture(uV,vT).x,B=texture(uV,vB).x; o=vec4(0.5*(R-L-T+B),0,0,1); }`);
+    const pVort = prog(`${H} uniform sampler2D uV,uC; uniform float curl,dt; void main(){ float L=texture(uC,vL).x,R=texture(uC,vR).x,T=texture(uC,vT).x,B=texture(uC,vB).x,C=texture(uC,vUv).x; vec2 f=0.5*vec2(abs(T)-abs(B),abs(R)-abs(L)); f/=length(f)+1e-4; f*=curl*C; f.y*=-1.; vec2 ve=texture(uV,vUv).xy; o=vec4(clamp(ve+f*dt,-1500.,1500.),0,1); }`);
+    const pPre = prog(`${H} uniform sampler2D uP,uD; void main(){ float L=texture(uP,vL).x,R=texture(uP,vR).x,T=texture(uP,vT).x,B=texture(uP,vB).x,d=texture(uD,vUv).x; o=vec4((L+R+B+T-d)*0.25,0,0,1); }`);
+    const pGrad = prog(`${H} uniform sampler2D uP,uV; void main(){ float L=texture(uP,vL).x,R=texture(uP,vR).x,T=texture(uP,vT).x,B=texture(uP,vB).x; vec2 ve=texture(uV,vUv).xy; ve-=vec2(R-L,T-B); o=vec4(ve,0,1); }`);
+    const pDiff = prog(`${H} uniform sampler2D uV,uS; uniform float a; void main(){ vec2 L=texture(uV,vL).xy,R=texture(uV,vR).xy,T=texture(uV,vT).xy,B=texture(uV,vB).xy,b=texture(uS,vUv).xy; o=vec4((b+a*(L+R+T+B))/(1.+4.*a),0,1); }`);
+    const pSplat = prog(`${H} uniform sampler2D uT; uniform float ar,rad; uniform vec3 col; uniform vec2 pt; void main(){ vec2 q=vUv-pt; q.x*=ar; o=vec4(texture(uT,vUv).xyz+exp(-dot(q,q)/rad)*col,1); }`);
+    const pCopy = prog(`${H} uniform sampler2D uT; void main(){ o=texture(uT,vUv); }`);
+    const pDisp = prog(`${H} uniform sampler2D uT; void main(){ o=vec4(texture(uT,vUv).rgb,1); }`);
+
+    const va = gl.createVertexArray(); gl.bindVertexArray(va);
+    const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    function blit(t) { if (!t) { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight); } else { gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo); gl.viewport(0, 0, t.w, t.h); } gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); }
+    const HF = gl.HALF_FLOAT;
+    function fbo(w, h, ifmt, fmt, fl) { const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, fl); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, fl); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texImage2D(gl.TEXTURE_2D, 0, ifmt, w, h, 0, fmt, HF, null); const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0); gl.clear(gl.COLOR_BUFFER_BIT); return { tex, fbo: f, w, h, tX: 1 / w, tY: 1 / h, at(u) { gl.activeTexture(gl.TEXTURE0 + u); gl.bindTexture(gl.TEXTURE_2D, tex); return u; } }; }
+    function dbl(w, h, i, f, fl) { let a = fbo(w, h, i, f, fl), b = fbo(w, h, i, f, fl); return { w, h, tX: 1 / w, tY: 1 / h, get r() { return a; }, get w2() { return b; }, swap() { const t = a; a = b; b = t; } }; }
+    let vel, dye, dv, cu, pr, vel0, SW, SH;
+    function res(r) { let a = gl.drawingBufferWidth / gl.drawingBufferHeight; if (a < 1) a = 1 / a; const mn = Math.round(r), mx = Math.round(r * a); return gl.drawingBufferWidth > gl.drawingBufferHeight ? [mx, mn] : [mn, mx]; }
+    function init() { const [sw, sh2] = res(cfg.SIM), [dw, dh] = res(cfg.DYE); SW = sw; SH = sh2; vel = dbl(sw, sh2, gl.RG16F, gl.RG, gl.LINEAR); vel0 = fbo(sw, sh2, gl.RG16F, gl.RG, gl.NEAREST); dye = dbl(dw, dh, gl.RGBA16F, gl.RGBA, gl.LINEAR); dv = fbo(sw, sh2, gl.R16F, gl.RED, gl.NEAREST); cu = fbo(sw, sh2, gl.R16F, gl.RED, gl.LINEAR); pr = dbl(sw, sh2, gl.R16F, gl.RED, gl.LINEAR); }
+    function U(x) { gl.useProgram(x.p); return x.u; }
+    function fitGL() { const dpr = Math.min(window.devicePixelRatio || 1, 2); const w = Math.max(1, Math.floor(cv.clientWidth * dpr)), h = Math.max(1, Math.floor(cv.clientHeight * dpr)); if (cv.width !== w || cv.height !== h || !vel) { cv.width = w; cv.height = h; init(); } }
+
+    function splat(x, y, dx, dy, col) {
+      let u = U(pSplat); gl.uniform1f(u.ar, cv.width / cv.height); gl.uniform1f(u.rad, cfg.radius / 100); gl.uniform2f(u.pt, x, y);
+      gl.uniform1i(u.uT, vel.r.at(0)); gl.uniform3f(u.col, dx, dy, 0); blit(vel.w2); vel.swap();
+      gl.uniform1i(u.uT, dye.r.at(0)); gl.uniform3f(u.col, col[0], col[1], col[2]); blit(dye.w2); dye.swap();
+    }
+    let hue = 0.13; function ncol() { hue = (hue + 0.618) % 1; const c = hsv(hue); return [c[0] * 0.16, c[1] * 0.16, c[2] * 0.16]; }
+    function hsv(h) { const i = Math.floor(h * 6), f = h * 6 - i, q = 1 - f; switch (i % 6) { case 0: return [1, f, 0]; case 1: return [q, 1, 0]; case 2: return [0, 1, f]; case 3: return [0, q, 1]; case 4: return [f, 0, 1]; default: return [1, 0, q]; } }
+
+    const pt = { down: false, x: 0, y: 0 }; let dcol = ncol();
+    function gp(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width, y: 1 - (e.clientY - r.top) / r.height }; }
+    cv.addEventListener("pointerdown", (e) => { const p = gp(e); pt.down = true; pt.x = p.x; pt.y = p.y; dcol = ncol(); cv.setPointerCapture(e.pointerId); });
+    cv.addEventListener("pointermove", (e) => { if (!pt.down) return; const p = gp(e); splat(p.x, p.y, (p.x - pt.x) * cfg.force, (p.y - pt.y) * cfg.force, dcol); pt.x = p.x; pt.y = p.y; });
+    const up = () => pt.down = false; cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up); cv.addEventListener("pointerleave", up);
+
+    function step(dt) {
+      gl.disable(gl.BLEND);
+      let u = U(pCurl); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uV, vel.r.at(0)); blit(cu);
+      if (cfg.curl > 0) { u = U(pVort); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uC, cu.at(1)); gl.uniform1f(u.curl, cfg.curl); gl.uniform1f(u.dt, dt); blit(vel.w2); vel.swap(); }
+      if (cfg.visc > 0.001) { u = U(pCopy); gl.uniform1i(u.uT, vel.r.at(0)); blit(vel0); const a = cfg.visc * 6 * dt * cfg.SIM; for (let i = 0; i < cfg.viscIters; i++) { u = U(pDiff); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uS, vel0.at(1)); gl.uniform1f(u.a, a); blit(vel.w2); vel.swap(); } }
+      if (cfg.project) {
+        u = U(pDiv); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uV, vel.r.at(0)); blit(dv);
+        u = U(pCopy); gl.uniform1i(u.uT, pr.r.at(0)); blit(pr.w2); pr.swap();
+        u = U(pPre); gl.uniform2f(u.tx, vel.tX, vel.tY); for (let i = 0; i < cfg.iters; i++) { gl.uniform1i(u.uD, dv.at(0)); gl.uniform1i(u.uP, pr.r.at(1)); blit(pr.w2); pr.swap(); }
+        u = U(pGrad); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uP, pr.r.at(0)); gl.uniform1i(u.uV, vel.r.at(1)); blit(vel.w2); vel.swap();
+      }
+      if (cfg.advectSelf) { u = U(pAdv); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uS, vel.r.at(0)); gl.uniform1f(u.dt, dt); gl.uniform1f(u.dis, cfg.velDiss); blit(vel.w2); vel.swap(); }
+      u = U(pAdv); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uS, dye.r.at(1)); gl.uniform1f(u.dt, dt); gl.uniform1f(u.dis, cfg.dyeDiss); blit(dye.w2); dye.swap();
+    }
+    function draw() { const u = U(pDisp); gl.uniform1i(u.uT, dye.r.at(0)); blit(null); }
+
+    let seeded = false, auto = 0;
+    function onShow() { fitGL(); if (!seeded) { seeded = true; for (let i = 0; i < 5; i++) { const c = ncol(); splat(0.5 + (Math.random() - 0.5) * 0.5, 0.5 + (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 900, (Math.random() - 0.5) * 900, [c[0] * 6, c[1] * 6, c[2] * 6]); } } }
+    document.getElementById("sim-reset").addEventListener("click", () => { init(); seeded = false; onShow(); });
+
+    // interactive equation terms: tap to toggle each term in the live solver
+    (function () {
+      const note = document.getElementById("term-note"); if (!note) return;
+      const T = {
+        "eqt-adv": { kind: "toggle", on: true, apply: (o) => cfg.advectSelf = o,
+          note: (o) => o ? ["advection on", "on", "<b>Advection</b> is on: the velocity field carries itself downstream, so your pushes roll up into swirls and eddies."]
+                         : ["advection off", "off", "<b>Advection off.</b> The flow no longer transports its own momentum, so pushes just sit and fade instead of curling into vortices. The swirl vanishes."] },
+        "eqt-pre": { kind: "toggle", on: true, apply: (o) => cfg.project = o,
+          note: (o) => o ? ["pressure on", "on", "<b>Pressure</b> is on: it instantly cancels any bunching-up, keeping the fluid incompressible (&#8711;&#8901;u = 0)."]
+                         : ["pressure off", "off", "<b>Pressure off.</b> Nothing enforces incompressibility now, so the fluid squashes and swells freely and the dye clumps and bursts like a gas. In a real solver this projection is the single most expensive step."] },
+        "eqt-visc": { kind: "boost", on: false, apply: (o) => { cfg.visc = o ? 0.5 : 0; viscEl.value = cfg.visc; viscV.textContent = cfg.visc === 0 ? "0" : cfg.visc.toFixed(2); },
+          note: (o) => o ? ["&#957; boosted", "on", "<b>Viscosity</b> turned up (&#957; &#8776; 0.5): internal friction diffuses momentum and the flow thickens toward honey."]
+                         : ["&#957; = 0", "on", "<b>Viscosity</b> back to zero: an ideal, frictionless fluid whose vortices stay crisp and long-lived. (The slider gives finer control.)"] },
+        "eqt-force": { kind: "info",
+          note: () => ["your input", "on", "The force <b>f</b> is you: every drag on the canvas adds velocity and dye right here. It's the one term the simulation waits on you to provide."] },
+      };
+      function paint(id) {
+        const t = T[id], on = t.kind === "info" ? true : t.on;
+        const [chip, cls, html] = t.note(on);
+        note.innerHTML = `<span class="st ${cls}">${chip}</span>${html}`;
+      }
+      Object.keys(T).forEach((id) => {
+        const el = document.getElementById(id); if (!el) return;
+        const act = () => {
+          const t = T[id];
+          if (t.kind !== "info") { t.on = !t.on; t.apply(t.on); }
+          if (t.kind === "toggle") el.classList.toggle("off", !t.on);
+          document.querySelectorAll(".eq-term").forEach((e) => e.classList.toggle("sel", e === el));
+          paint(id);
+        };
+        el.addEventListener("click", act);
+        el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); act(); } });
+      });
+    })();
+    function tick(dt) {
+      fitGL();
+      if (!pt.down) { auto += dt; if (auto > 1.3) { auto = 0; const c = ncol(); splat(0.5 + (Math.random() - 0.5) * 0.6, 0.5 + (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 700, (Math.random() - 0.5) * 700, [c[0] * 5, c[1] * 5, c[2] * 5]); } }
+      step(Math.min(0.05 * cfg.dt, 0.05)); draw();
+    }
+    register({ el: cv, tick, onShow });
+  })();
+
+  /* ===================================================================
+     Lesson 07 — Kármán vortex street (inflow past a draggable obstacle)
+     =================================================================== */
+  (function () {
+    const cv = document.getElementById("cv-karman"); if (!cv) return;
+    const gl = cv.getContext("webgl2", { alpha: false, antialias: false, depth: false, stencil: false });
+    if (!gl || !gl.getExtension("EXT_color_buffer_float")) {
+      cv.parentElement.innerHTML = '<div class="fallback" style="display:block">This live demo needs the WebGL2 float pipeline, but the explanation above still stands. Try a recent desktop browser.</div>';
+      return;
+    }
+    const cfg = { RES: 170, iters: 30, curl: 4, dt: 1, velDiss: 0.06, viscA: 0.5, viscN: 2, U0: 120, obsR: 0.078, Re: 130 };
+    // The Reynolds number is the physical control. Re = U L / nu, so we hold the
+    // obstacle size fixed and trade off inflow speed against viscosity: low Re means
+    // a thick, heavily-damped fluid (calm attached wake); high Re means fast and nearly
+    // inviscid (many small vortices). A floor on the smoothing keeps grid noise in check.
+    const reEl = document.getElementById("kar-re"), reV = document.getElementById("kar-re-v"), reReg = document.getElementById("kar-regime");
+    function applyRe() {
+      const re = cfg.Re, t = clamp((re - 20) / (420 - 20), 0, 1);
+      cfg.U0 = lerp(62, 175, t);
+      // Heavy viscosity at low Re (a creeping, attached wake), easing toward nearly
+      // inviscid at the top. The extra smoothing iteration below the street band keeps
+      // the calm end genuinely steady.
+      cfg.viscA = t < 0.28 ? lerp(2.6, 0.5, t / 0.28) : lerp(0.5, 0.13, (t - 0.28) / 0.72);
+      cfg.viscN = t < 0.28 ? 3 : 2;
+      cfg.velDiss = lerp(0.16, 0.015, t);
+      reV.textContent = Math.round(re);
+      const reg = t < 0.24 ? ["calm wake", "calm"] : t < 0.62 ? ["vortex street", "street"] : ["turbulent", "turb"];
+      reReg.textContent = reg[0]; reReg.className = "regime " + reg[1];
+    }
+    reEl.addEventListener("input", () => { cfg.Re = +reEl.value; applyRe(); }); applyRe();
+
+    const VERT = `#version 300 es
+      precision highp float; in vec2 aP; out vec2 vUv,vL,vR,vT,vB; uniform vec2 tx;
+      void main(){ vUv=aP*0.5+0.5; vL=vUv-vec2(tx.x,0.); vR=vUv+vec2(tx.x,0.); vT=vUv+vec2(0.,tx.y); vB=vUv-vec2(0.,tx.y); gl_Position=vec4(aP,0.,1.); }`;
+    function sh(t, s) { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(o); return o; }
+    const vs = sh(gl.VERTEX_SHADER, VERT);
+    function prog(f) { const p = gl.createProgram(); gl.attachShader(p, vs); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, f)); gl.linkProgram(p); const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let i = 0; i < n; i++) { const nm = gl.getActiveUniform(p, i).name; u[nm] = gl.getUniformLocation(p, nm); } return { p, u }; }
+    const HH = `#version 300 es
+      precision highp float; precision highp sampler2D; in vec2 vUv,vL,vR,vT,vB; out vec4 o;`;
+    const pAdv = prog(`${HH} uniform sampler2D uV,uS; uniform vec2 tx; uniform float dt,dis; void main(){ vec2 c=vUv-dt*texture(uV,vUv).xy*tx; o=texture(uS,c)/(1.+dis*dt); }`);
+    const pDiv = prog(`${HH} uniform sampler2D uV; void main(){ float L=texture(uV,vL).x,R=texture(uV,vR).x,T=texture(uV,vT).y,B=texture(uV,vB).y; vec2 C=texture(uV,vUv).xy; if(vL.x<0.)L=C.x; if(vR.x>1.)R=C.x; if(vT.y>1.)T=-C.y; if(vB.y<0.)B=-C.y; o=vec4(0.5*(R-L+T-B),0,0,1); }`);
+    const pCurl = prog(`${HH} uniform sampler2D uV; void main(){ float L=texture(uV,vL).y,R=texture(uV,vR).y,T=texture(uV,vT).x,B=texture(uV,vB).x; o=vec4(0.5*(R-L-T+B),0,0,1); }`);
+    const pVort = prog(`${HH} uniform sampler2D uV,uC; uniform float curl,dt; void main(){ float L=texture(uC,vL).x,R=texture(uC,vR).x,T=texture(uC,vT).x,B=texture(uC,vB).x,C=texture(uC,vUv).x; vec2 f=0.5*vec2(abs(T)-abs(B),abs(R)-abs(L)); f/=length(f)+1e-4; f*=curl*C; f.y*=-1.; vec2 ve=texture(uV,vUv).xy; o=vec4(clamp(ve+f*dt,-2000.,2000.),0,1); }`);
+    const pPre = prog(`${HH} uniform sampler2D uP,uD; void main(){ if(vUv.x>0.98){ o=vec4(0,0,0,1); return; } float L=texture(uP,vL).x,R=texture(uP,vR).x,T=texture(uP,vT).x,B=texture(uP,vB).x,d=texture(uD,vUv).x; o=vec4((L+R+B+T-d)*0.25,0,0,1); }`);
+    const pGrad = prog(`${HH} uniform sampler2D uP,uV; void main(){ float L=texture(uP,vL).x,R=texture(uP,vR).x,T=texture(uP,vT).x,B=texture(uP,vB).x; vec2 ve=texture(uV,vUv).xy; ve-=vec2(R-L,T-B); o=vec4(ve,0,1); }`);
+    const pCopy = prog(`${HH} uniform sampler2D uT; void main(){ o=texture(uT,vUv); }`);
+    const pDiff = prog(`${HH} uniform sampler2D uV,uS; uniform float a; void main(){ vec2 L=texture(uV,vL).xy,R=texture(uV,vR).xy,T=texture(uV,vT).xy,B=texture(uV,vB).xy,b=texture(uS,vUv).xy; o=vec4((b+a*(L+R+T+B))/(1.+4.*a),0,1); }`);
+    // enforce free-stream inflow and the solid obstacle each pass
+    const pBound = prog(`${HH} uniform sampler2D uV; uniform vec2 obs,obsVel; uniform float obsR,U0,ar;
+      void main(){ vec2 v=texture(uV,vUv).xy;
+        if(vUv.x<0.03) v=vec2(U0,0.);
+        vec2 d=vUv-obs; d.x*=ar; if(dot(d,d)<obsR*obsR) v=obsVel;
+        o=vec4(v,0,1); }`);
+    const pDisp = prog(`${HH} uniform sampler2D uT; uniform vec2 obs; uniform float obsR,ar,scale;
+      vec3 dv(float t){ t=clamp(t,-1.,1.); vec3 m=vec3(0.05,0.06,0.09),n=vec3(0.23,0.53,1.0),p=vec3(0.95,0.42,0.18); return t<0.?mix(m,n,-t):mix(m,p,t); }
+      void main(){ vec2 d=vUv-obs; d.x*=ar; if(dot(d,d)<obsR*obsR){ float e=smoothstep(obsR*obsR,obsR*obsR*0.6,dot(d,d)); o=vec4(mix(vec3(0.14,0.16,0.2),vec3(0.5,0.55,0.62),e),1.); return; } o=vec4(dv(texture(uT,vUv).x*scale),1.); }`);
+
+    const va = gl.createVertexArray(); gl.bindVertexArray(va);
+    const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    function blit(t) { if (!t) { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight); } else { gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo); gl.viewport(0, 0, t.w, t.h); } gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); }
+    const HF = gl.HALF_FLOAT;
+    function fbo(w, h, ifmt, fmt, fl) { const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, fl); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, fl); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texImage2D(gl.TEXTURE_2D, 0, ifmt, w, h, 0, fmt, HF, null); const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0); gl.clear(gl.COLOR_BUFFER_BIT); return { tex, fbo: f, w, h, tX: 1 / w, tY: 1 / h, at(u) { gl.activeTexture(gl.TEXTURE0 + u); gl.bindTexture(gl.TEXTURE_2D, tex); return u; } }; }
+    function dbl(w, h, i, f, fl) { let a = fbo(w, h, i, f, fl), b = fbo(w, h, i, f, fl); return { get r() { return a; }, get w2() { return b; }, swap() { const t = a; a = b; b = t; } }; }
+    let vel, vel0, cu, dvg, pr, SW, SH, AR;
+    // The simulation grid is fixed to the layout aspect, NOT the device pixel ratio, so the
+    // effective Reynolds number is identical on every screen. (Tying it to the pixel buffer
+    // made a retina display run a far finer grid — and therefore far more turbulent — than a
+    // 1x one at the same slider setting.)
+    function res(r) { let a = cv.clientWidth / cv.clientHeight; if (!isFinite(a) || a <= 0) a = 2; return [Math.round(r * a), Math.round(r)]; }
+    function init() { const [w, h] = res(cfg.RES); SW = w; SH = h; AR = w / h; vel = dbl(w, h, gl.RG16F, gl.RG, gl.LINEAR); vel0 = fbo(w, h, gl.RG16F, gl.RG, gl.NEAREST); cu = fbo(w, h, gl.R16F, gl.RED, gl.LINEAR); dvg = fbo(w, h, gl.R16F, gl.RED, gl.NEAREST); pr = dbl(w, h, gl.R16F, gl.RED, gl.LINEAR); }
+    function U(x) { gl.useProgram(x.p); return x.u; }
+    function fitGL() { const dpr = Math.min(window.devicePixelRatio || 1, 2); const w = Math.max(1, Math.floor(cv.clientWidth * dpr)), h = Math.max(1, Math.floor(cv.clientHeight * dpr)); if (cv.width !== w || cv.height !== h || !vel) { cv.width = w; cv.height = h; init(); } }
+
+    // obstacle: fixed x, y oscillates gently unless the user drags it
+    const obs = { x: 0.26, y: 0.5, py: 0.5, vy: 0, drag: false };
+    function op(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width, y: 1 - (e.clientY - r.top) / r.height }; }
+    cv.addEventListener("pointerdown", (e) => { const p = op(e); if (Math.hypot((p.x - obs.x) * AR, p.y - obs.y) < cfg.obsR * 2.2 || true) { obs.drag = true; obs.y = clamp(p.y, 0.15, 0.85); cv.setPointerCapture(e.pointerId); } });
+    cv.addEventListener("pointermove", (e) => { if (!obs.drag) return; const p = op(e); obs.y = clamp(p.y, 0.15, 0.85); });
+    const rel = () => obs.drag = false; cv.addEventListener("pointerup", rel); cv.addEventListener("pointercancel", rel); cv.addEventListener("pointerleave", rel);
+
+    function bound() { const u = U(pBound); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform2f(u.obs, obs.x, obs.y); gl.uniform2f(u.obsVel, 0, clamp(obs.vy, -400, 400)); gl.uniform1f(u.obsR, cfg.obsR); gl.uniform1f(u.U0, cfg.U0); gl.uniform1f(u.ar, AR); blit(vel.w2); vel.swap(); }
+    function step(dt) {
+      gl.disable(gl.BLEND);
+      bound();
+      // light viscosity: a couple of Jacobi smoothing passes damp grid-scale noise so the wake stays coherent
+      let u = U(pCopy); gl.uniform1i(u.uT, vel.r.at(0)); blit(vel0);
+      for (let i = 0; i < cfg.viscN; i++) { u = U(pDiff); gl.uniform2f(u.tx, 1 / SW, 1 / SH); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uS, vel0.at(1)); gl.uniform1f(u.a, cfg.viscA); blit(vel.w2); vel.swap(); }
+      u = U(pCurl); gl.uniform2f(u.tx, 1 / SW, 1 / SH); gl.uniform1i(u.uV, vel.r.at(0)); blit(cu);
+      if (cfg.curl > 0) { u = U(pVort); gl.uniform2f(u.tx, 1 / SW, 1 / SH); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uC, cu.at(1)); gl.uniform1f(u.curl, cfg.curl); gl.uniform1f(u.dt, dt); blit(vel.w2); vel.swap(); }
+      u = U(pDiv); gl.uniform2f(u.tx, 1 / SW, 1 / SH); gl.uniform1i(u.uV, vel.r.at(0)); blit(dvg);
+      u = U(pCopy); gl.uniform1i(u.uT, pr.r.at(0)); blit(pr.w2); pr.swap();
+      u = U(pPre); gl.uniform2f(u.tx, 1 / SW, 1 / SH); for (let i = 0; i < cfg.iters; i++) { gl.uniform1i(u.uD, dvg.at(0)); gl.uniform1i(u.uP, pr.r.at(1)); blit(pr.w2); pr.swap(); }
+      u = U(pGrad); gl.uniform2f(u.tx, 1 / SW, 1 / SH); gl.uniform1i(u.uP, pr.r.at(0)); gl.uniform1i(u.uV, vel.r.at(1)); blit(vel.w2); vel.swap();
+      bound();
+      u = U(pAdv); gl.uniform2f(u.tx, 1 / SW, 1 / SH); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uS, vel.r.at(0)); gl.uniform1f(u.dt, dt); gl.uniform1f(u.dis, cfg.velDiss); blit(vel.w2); vel.swap();
+      bound();
+    }
+    function draw() { const u = U(pDisp); gl.uniform1i(u.uT, cu.at(0)); gl.uniform2f(u.obs, obs.x, obs.y); gl.uniform1f(u.obsR, cfg.obsR); gl.uniform1f(u.ar, AR); gl.uniform1f(u.scale, 0.05); blit(null); }
+
+    let t = 0, warm = false;
+    function onShow() { fitGL(); if (!warm) { warm = true; for (let i = 0; i < 60; i++) step(0.05); } }
+    document.getElementById("kar-reset").addEventListener("click", () => { init(); warm = false; onShow(); });
+    function tick(dtt) {
+      fitGL();
+      t += dtt;
+      if (!obs.drag) obs.y = 0.5 + 0.05 * Math.sin(t * 2.4);      // gentle wobble seeds the shedding
+      obs.vy = (obs.y - obs.py) / Math.max(dtt, 1e-3) * 0.4; obs.py = obs.y;
+      step(0.05); draw();
+    }
+    register({ el: cv, tick, onShow });
+  })();
+
+  /* ---------- progress bar + theme ---------- */
+  const bar = document.getElementById("progress");
+  addEventListener("scroll", () => { const h = document.documentElement; const p = h.scrollTop / (h.scrollHeight - h.clientHeight || 1); bar.style.width = clamp(p, 0, 1) * 100 + "%"; }, { passive: true });
+  document.getElementById("theme").addEventListener("click", () => {
+    const root = document.documentElement, dark = matchMedia("(prefers-color-scheme: dark)").matches;
+    const cur = root.getAttribute("data-theme") || (dark ? "dark" : "light");
+    root.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+  });
+
+  requestAnimationFrame((t) => { last = t; loop(t); });
+})();
+</script>
+</body>
+</html>

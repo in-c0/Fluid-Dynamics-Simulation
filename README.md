@@ -23,7 +23,8 @@ Rather than one big simulator, the maths is taught the way Khan Academy or Brill
 would: a scrollable lesson where **each concept gets its own small, focused, playable
 demo**, building up to the full Navier–Stokes equations.
 
-**▶ Open the live lesson:** **https://in-c0.github.io/Fluid-Dynamics-Simulation/web/**
+**▶ Open the lesson:** [`web/index.html`](web/index.html) &nbsp;·&nbsp; live via GitHub
+Pages at **https://in-c0.github.io/Fluid-Dynamics-Simulation/web/**
 
 | # | Concept | What you play with | Live demo |
 |---|---------|--------------------|-----------|
@@ -35,16 +36,33 @@ demo**, building up to the full Navier–Stokes equations.
 | 06 | **The full equation** — all four terms, assembled | Drag the sim, and **tap each term** to toggle it live | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#navier-stokes) |
 | 07 | **Kármán vortex street** — why flags flutter and wires hum | Drag the obstacle and watch vortices shed | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#karman) |
 
+A closing essay — [**How it's built**](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#implementation) —
+walks through the Stable-Fluids algorithm and weighs *why (and why not)* C++/Vulkan
+versus CUDA, WebGPU, OpenGL, and Rust for the native solver.
+
 The first five demos are lightweight Canvas 2D so each shows only its one idea; the
 capstone and vortex-street demos are real WebGL2 [Stable Fluids](https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf)
-solvers, mirroring the same stages as the native Vulkan simulator below. A closing essay,
-**How it's built**, walks through the algorithm and weighs *why (and why not)* C++/Vulkan
-versus CUDA, WebGPU, OpenGL, and Rust for the native solver. Prefer a single knob-filled
-playground? A full sandbox with every parameter ships alongside the lesson.
+solvers, mirroring the same stages as the native Vulkan simulator below. Prefer a single
+knob-filled playground? A full sandbox with every parameter lives in
+[`web/sandbox.html`](web/sandbox.html).
 
-> **Status:** the lesson and sandbox live in [PR #1](https://github.com/in-c0/Fluid-Dynamics-Simulation/pull/1)
-> (`web/index.html` + `web/sandbox.html`, self-contained, no build step). The links above
-> go live once that PR merges and **GitHub Pages** is enabled for this repo.
+> **Note:** GitHub renders README markdown without JavaScript, so the demos can't run
+> *inline* here — the links above open the live, interactive page.
+
+### Running it locally
+
+Both pages are single self-contained files with no build step or dependencies:
+
+```
+# from the repo root
+python3 -m http.server -d web 8000
+# then open http://localhost:8000            (the lesson)
+#      or http://localhost:8000/sandbox.html (the full sandbox)
+```
+
+Or open `web/index.html` directly in a modern browser (Chrome, Firefox, or Safari —
+anything with WebGL2 + `EXT_color_buffer_float`). To publish it, enable **GitHub Pages**
+and point it at this repository (the demos live under `web/`).
 
 
 ![FluidDynamicsSimulation_XrIAYd1XXk](https://github.com/user-attachments/assets/45049b6a-9c97-4af6-a54c-09fa668579f8)
@@ -67,8 +85,8 @@ https://github.com/user-attachments/assets/38ce9239-f8ac-43ae-98b4-1470b74f8598
 ### Cloning the Repository
 
 ```
-git clone https://github.com/in-c0/three-body-simulation.git
-cd three-body-simulation
+git clone https://github.com/in-c0/fluid-dynamics-simulation.git
+cd fluid-dynamics-simulation
 ```
 
 ### Setting Up Dependencies
@@ -144,8 +162,7 @@ wsl --unregister Ubuntu
  ```
 
 If you prefer to work on a non-WSL/Ubuntu environment, or if you've encountered unsolvable issues during installation, you can download the prerequisite libraries from the official websites:
-- [GFortran](https://fortran-lang.org/learn/os_setup/install_gfortran/)
-- [CMake](https://cmake.org/download/) (version 3.10 or higher)
+- [CMake](https://cmake.org/download/) (version 3.16 or higher)
 - [Vulkan](https://vulkan.lunarg.com/doc/sdk/1.3.290.0/linux/getting_started.html)
 
 

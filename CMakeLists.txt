@@ -1,10 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 project(FluidDynamicsSimulation LANGUAGES CXX)
 
-# Set up C++ and Fortran standards
+# Set up C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-# set(CMAKE_Fortran_COMPILER gfortran)
 
 # Vulkan SDK detection from the official Vulkan sample CMakeLists.txt
 find_package(Vulkan REQUIRED)
@@ -29,7 +28,6 @@ add_subdirectory(third_party/glfw)
 
 add_executable(${PROJECT_NAME}
     src/main.cpp
-    ${FORTRAN_SOURCES}
 )
 
 include_directories(
