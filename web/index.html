@@ -120,6 +120,10 @@
     letter-spacing: 0.04em; color: #9fb0be;
   }
   .controls .ctl .lab .v { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .regime { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+  .regime.calm { color: #4fb0ff; }
+  .regime.street { color: var(--accent); }
+  .regime.turb { color: var(--amber); }
   .controls input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 3px; background: rgba(150,175,190,0.28); outline: none; cursor: pointer; }
   .controls input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 15px; height: 15px; border-radius: 50%; background: var(--accent); border: 2px solid #0b1017; box-shadow: 0 0 0 1px var(--accent); }
   .controls input[type="range"]::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: var(--accent); border: 2px solid #0b1017; }
@@ -345,11 +349,11 @@
       <div class="stage-frame">
         <canvas id="cv-karman"></canvas>
         <div class="controls">
-          <div class="ctl"><div class="lab"><span>Flow speed</span><span class="v" id="kar-speed-v"></span></div><input type="range" id="kar-speed" min="60" max="220" step="5" value="120"></div>
+          <div class="ctl"><div class="lab"><span>Reynolds number</span><span><span class="v" id="kar-re-v"></span> <span id="kar-regime" class="regime"></span></span></div><input type="range" id="kar-re" min="20" max="420" step="5" value="130"></div>
           <button class="dbtn" id="kar-reset">Reset flow</button>
         </div>
       </div>
-      <figcaption><span class="try">Try it</span> Flow runs left to right; colour is vorticity (<span style="color:#e8663c">clockwise</span> / <span style="color:#3a86ff">counter-clockwise</span>). <b>Drag the circle up and down</b> and watch the wake break into alternating vortices. Slow the flow right down and the street disappears &mdash; the wake goes calm.</figcaption>
+      <figcaption><span class="try">Try it</span> Flow runs left to right; colour is vorticity (<span style="color:#e8663c">clockwise</span> / <span style="color:#3a86ff">counter-clockwise</span>). Sweep the <b>Reynolds number</b> to move through the regimes: low Re gives a smooth, attached wake; the middle band sheds the clean alternating street; crank it up and the wake breaks into busy turbulence. <b>Drag the circle</b> to disturb it at any time.</figcaption>
     </figure>
     <div class="keyidea">
       <p class="ki-label">The one number that decides</p>
@@ -815,10 +819,24 @@
       cv.parentElement.innerHTML = '<div class="fallback" style="display:block">This live demo needs the WebGL2 float pipeline, but the explanation above still stands. Try a recent desktop browser.</div>';
       return;
     }
-    const cfg = { RES: 170, iters: 30, curl: 4, dt: 1, velDiss: 0.06, viscA: 0.5, viscN: 2, U0: 120, obsR: 0.078 };
-    const spEl = document.getElementById("kar-speed"), spV = document.getElementById("kar-speed-v");
-    const paintSp = () => spV.textContent = (cfg.U0 / 100).toFixed(2) + "×";
-    spEl.addEventListener("input", () => { cfg.U0 = +spEl.value; paintSp(); }); paintSp();
+    const cfg = { RES: 170, iters: 30, curl: 4, dt: 1, velDiss: 0.06, viscA: 0.5, viscN: 2, U0: 120, obsR: 0.078, Re: 130 };
+    // The Reynolds number is the physical control. Re = U L / nu, so we hold the
+    // obstacle size fixed and trade off inflow speed against viscosity: low Re means
+    // a thick, heavily-damped fluid (calm attached wake); high Re means fast and nearly
+    // inviscid (many small vortices). A floor on the smoothing keeps grid noise in check.
+    const reEl = document.getElementById("kar-re"), reV = document.getElementById("kar-re-v"), reReg = document.getElementById("kar-regime");
+    function applyRe() {
+      const re = cfg.Re, t = clamp((re - 20) / (420 - 20), 0, 1);
+      cfg.U0 = lerp(95, 175, t);
+      // viscosity falls steeply out of the calm band, then eases toward inviscid so
+      // the street sits at a moderate value and the top end goes fine-scale turbulent
+      cfg.viscA = t < 0.25 ? lerp(1.6, 0.5, t / 0.25) : lerp(0.5, 0.14, (t - 0.25) / 0.75);
+      cfg.velDiss = lerp(0.10, 0.015, t);
+      reV.textContent = Math.round(re);
+      const reg = t < 0.24 ? ["calm wake", "calm"] : t < 0.62 ? ["vortex street", "street"] : ["turbulent", "turb"];
+      reReg.textContent = reg[0]; reReg.className = "regime " + reg[1];
+    }
+    reEl.addEventListener("input", () => { cfg.Re = +reEl.value; applyRe(); }); applyRe();
 
     const VERT = `#version 300 es
       precision highp float; in vec2 aP; out vec2 vUv,vL,vR,vT,vB; uniform vec2 tx;
