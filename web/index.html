@@ -145,6 +145,17 @@
 
   .inline-eq { font-family: var(--serif); font-style: italic; }
 
+  /* interactive equation terms in the capstone */
+  .eq-term { cursor: pointer; border-radius: 5px; padding: 1px 3px; background: var(--amber-soft); transition: opacity 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease; }
+  .eq-term:hover { box-shadow: 0 0 0 1.5px var(--amber); }
+  .eq-term.sel { box-shadow: 0 0 0 2px var(--amber); }
+  .eq-term.off { background: transparent; opacity: 0.34; }
+  .term-note { margin: 14px 0 0 !important; font-size: 14px !important; color: var(--muted) !important; min-height: 2.6em; }
+  .term-note b { color: var(--text); }
+  .term-note .st { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 6px; border-radius: 5px; margin-right: 8px; }
+  .term-note .st.on { color: var(--accent); background: var(--accent-soft); }
+  .term-note .st.off { color: var(--amber); background: var(--amber-soft); }
+
   /* capstone */
   .capstone .stage-frame canvas { height: 420px; }
   .final-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
@@ -160,6 +171,18 @@
   footer a { color: var(--muted); }
 
   .fallback { display: none; padding: 40px 22px; text-align: center; color: var(--muted); }
+
+  .lesson h3 { font-size: 19px; margin: 30px 0 10px; letter-spacing: -0.01em; }
+  .tbl-wrap { overflow-x: auto; margin: 22px 0; border: 1px solid var(--border); border-radius: 10px; }
+  table.cmp { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 520px; }
+  table.cmp th, table.cmp td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.cmp tr:last-child td { border-bottom: none; }
+  table.cmp th { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); background: var(--surface); }
+  table.cmp td:first-child { font-weight: 600; white-space: nowrap; color: var(--text); }
+  table.cmp td strong { color: var(--accent); font-weight: 600; }
+  .verdict { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--amber); border-radius: 10px; padding: 16px 18px; margin: 24px 0; }
+  .verdict p { margin: 0; color: var(--muted); font-size: 15px; }
+  .verdict b { color: var(--text); }
 </style>
 
 <div id="progress"></div>
@@ -167,9 +190,9 @@
 
 <header class="hero">
   <div class="wrap">
-    <p class="kicker">Interactive fluid dynamics</p>
-    <h1>The maths of moving fluid, one idea at a time</h1>
-    <p>Five small demos, each teaching a single concept &mdash; then we assemble them into the Navier&ndash;Stokes equations and turn on a real simulation. Play with every one; nothing to install.</p>
+    <p class="kicker">A hands-on introduction</p>
+    <h1>How fluids move &mdash; from a single arrow to the full equations</h1>
+    <p>Smoke curling off a candle, water braiding around a bridge pier, cream unfolding into coffee &mdash; strikingly different sights, yet they all follow the same short list of physical rules. This page builds that list up from nothing. We begin with the one object every fluid model is made of: a field of velocity arrows. Then, one effect at a time, we add the physics that gives a fluid its character &mdash; how it carries itself downstream, how it starts to spin, how internal friction blurs it, and how the near-impossibility of squeezing water into a smaller space forces pressure to push back. Each idea comes with a small demo you can poke at directly. By the last one, the pieces have assembled into the <strong>Navier&ndash;Stokes equations</strong>, and you can watch a real simulation solve them in front of you.</p>
     <nav class="toc">
       <a href="#field"><b>01</b> Velocity fields</a>
       <a href="#advection"><b>02</b> Advection</a>
@@ -177,6 +200,8 @@
       <a href="#viscosity"><b>04</b> Viscosity</a>
       <a href="#pressure"><b>05</b> Pressure</a>
       <a href="#navier-stokes"><b>06</b> The full equation</a>
+      <a href="#karman"><b>07</b> Vortex street</a>
+      <a href="#implementation"><b>+</b> How it's built</a>
     </nav>
   </div>
 </header>
@@ -278,20 +303,21 @@
   <section class="lesson capstone" id="navier-stokes">
     <p class="eyebrow"><span class="num">Lesson 06</span> &middot; Putting it together</p>
     <h2>The Navier&ndash;Stokes equations</h2>
-    <p>Stack the four effects you just met &mdash; advection carries the flow, viscosity smooths it, pressure keeps it incompressible, and your hand adds force &mdash; and you have the equations that govern nearly every fluid in the universe:</p>
+    <p>You have now met the four effects on the right-hand side. Written together, they say how the velocity <span class="inline-eq">u</span> at every point changes over the next sliver of time &mdash; and that single statement, plus the incompressibility condition beneath it, governs almost every fluid in the everyday world, from the flush of a tap to the weather:</p>
     <div class="keyidea">
       <p class="ki-label">Conservation of momentum &amp; mass</p>
       <math display="block">
         <mrow>
           <mfrac><mrow><mo>&#8706;</mo><mi mathvariant="bold">u</mi></mrow><mrow><mo>&#8706;</mo><mi>t</mi></mrow></mfrac><mo>=</mo>
-          <mrow class="term" style="background:var(--amber-soft)"><mo>&#8722;</mo><mo>(</mo><mi mathvariant="bold">u</mi><mo>&#8901;</mo><mo>&#8711;</mo><mo>)</mo><mi mathvariant="bold">u</mi></mrow>
-          <mrow class="term" style="background:var(--amber-soft)"><mo>&#8722;</mo><mfrac><mn>1</mn><mi>&#961;</mi></mfrac><mo>&#8711;</mo><mi>p</mi></mrow>
-          <mrow class="term" style="background:var(--amber-soft)"><mo>+</mo><mi>&#957;</mi><msup><mo>&#8711;</mo><mn>2</mn></msup><mi mathvariant="bold">u</mi></mrow>
-          <mrow class="term" style="background:var(--amber-soft)"><mo>+</mo><mi mathvariant="bold">f</mi></mrow>
+          <mrow class="eq-term" id="eqt-adv" role="button" tabindex="0" aria-label="advection term, toggle in simulation"><mo>&#8722;</mo><mo>(</mo><mi mathvariant="bold">u</mi><mo>&#8901;</mo><mo>&#8711;</mo><mo>)</mo><mi mathvariant="bold">u</mi></mrow>
+          <mrow class="eq-term" id="eqt-pre" role="button" tabindex="0" aria-label="pressure term, toggle in simulation"><mo>&#8722;</mo><mfrac><mn>1</mn><mi>&#961;</mi></mfrac><mo>&#8711;</mo><mi>p</mi></mrow>
+          <mrow class="eq-term" id="eqt-visc" role="button" tabindex="0" aria-label="viscosity term, toggle in simulation"><mo>+</mo><mi>&#957;</mi><msup><mo>&#8711;</mo><mn>2</mn></msup><mi mathvariant="bold">u</mi></mrow>
+          <mrow class="eq-term" id="eqt-force" role="button" tabindex="0" aria-label="force term"><mo>+</mo><mi mathvariant="bold">f</mi></mrow>
         </mrow>
       </math>
       <math display="block"><mrow><mo>&#8711;</mo><mo>&#8901;</mo><mi mathvariant="bold">u</mi><mo>=</mo><mn>0</mn></mrow></math>
-      <p>Advection &middot; pressure &middot; viscosity &middot; your force &mdash; every wisp below is these terms solving themselves on a grid.</p>
+      <p>Read it as a budget for the flow: the fluid drags itself around (<b>advection</b>), pressure shoves back wherever it tries to bunch up, friction bleeds sharp differences away (<b>viscosity</b>), and whatever you add with the cursor is the force <span class="inline-eq">f</span>. The line below is just bookkeeping &mdash; as much fluid leaves each tiny region as enters it. Best of all, none of this is abstract here: <b>tap a highlighted term to switch it off in the live simulation</b> and see exactly what that piece was holding together.</p>
+      <p class="term-note" id="term-note"><span class="st on">all terms on</span>The simulation below is solving the whole equation. Turn a term off to isolate its job.</p>
     </div>
     <figure class="stage">
       <div class="stage-frame">
@@ -302,11 +328,63 @@
           <div class="ctl"><div class="lab"><span>Viscosity &#957;</span><span class="v" id="sim-visc-v"></span></div><input type="range" id="sim-visc" min="0" max="1" step="0.02" value="0"></div>
         </div>
       </div>
-      <figcaption><span class="try">Try it</span> Drag to inject dye and flow. This is the real thing &mdash; a GPU solver running the equations above.</figcaption>
+      <figcaption><span class="try">Try it</span> Drag on the canvas to inject dye and set the fluid moving &mdash; this is a real GPU solver running the equation above. Then tap the equation's terms to feel each one's contribution.</figcaption>
     </figure>
     <div class="final-cta">
       <a class="primary" href="sandbox.html">Open the full sandbox &rarr;</a>
-      <a href="https://github.com/in-c0/Fluid-Dynamics-Simulation">See the C++/Vulkan source</a>
+      <a href="#karman">Next: the vortex street &darr;</a>
+    </div>
+  </section>
+
+  <section class="lesson" id="karman">
+    <p class="eyebrow"><span class="num">Lesson 07</span> &middot; The K&aacute;rm&aacute;n vortex street</p>
+    <h2>Why a flag flutters and a wire hums</h2>
+    <p>Everything so far has been the fluid reacting to you. Now let's watch it misbehave entirely on its own. Send a steady stream past a blunt obstacle &mdash; a bridge pier, a chimney, a wire in the wind &mdash; and something surprising happens once the flow is fast enough. At a crawl, the stream simply parts and closes behind the obstacle, calm and symmetric. But past a certain speed that neat wake becomes unstable: the obstacle starts flinging off spinning vortices, first from one side, then the other, over and over, in a tidy staggered double row that trails downstream. This is the <strong>K&aacute;rm&aacute;n vortex street</strong>.</p>
+    <p>It is not a curiosity. The alternating vortices yank the obstacle sideways at a steady beat &mdash; that rhythmic tug is what makes a flag ripple, sets a car aerial or a power line singing in the wind (the "aeolian tone"), and, when the shedding frequency happens to match a structure's natural sway, can drive it to destruction; the vortices peeling off the deck were part of what tore apart the Tacoma Narrows Bridge in 1940.</p>
+    <figure class="stage">
+      <div class="stage-frame">
+        <canvas id="cv-karman"></canvas>
+        <div class="controls">
+          <div class="ctl"><div class="lab"><span>Flow speed</span><span class="v" id="kar-speed-v"></span></div><input type="range" id="kar-speed" min="60" max="220" step="5" value="120"></div>
+          <button class="dbtn" id="kar-reset">Reset flow</button>
+        </div>
+      </div>
+      <figcaption><span class="try">Try it</span> Flow runs left to right; colour is vorticity (<span style="color:#e8663c">clockwise</span> / <span style="color:#3a86ff">counter-clockwise</span>). <b>Drag the circle up and down</b> and watch the wake break into alternating vortices. Slow the flow right down and the street disappears &mdash; the wake goes calm.</figcaption>
+    </figure>
+    <div class="keyidea">
+      <p class="ki-label">The one number that decides</p>
+      <math display="block"><mrow><mi>Re</mi><mo>=</mo><mfrac><mrow><mi>U</mi><mi>L</mi></mrow><mi>&#957;</mi></mfrac></mrow></math>
+      <p>Whether you get a calm wake, a clean vortex street, or full turbulence is governed almost entirely by the <b>Reynolds number</b> &mdash; the ratio of inertia (flow speed <span class="inline-eq">U</span> times obstacle size <span class="inline-eq">L</span>) to viscosity <span class="inline-eq">&#957;</span>. It's dimensionless, so a marble in syrup and a submarine in the sea can behave identically if their Reynolds numbers match. The street lives roughly between <span class="inline-eq">Re</span> &#8776; 50 and a few hundred; turning up "flow speed" above is really turning up <span class="inline-eq">Re</span>.</p>
+    </div>
+  </section>
+
+  <section class="lesson" id="implementation">
+    <p class="eyebrow"><span class="num">Under the hood</span></p>
+    <h2>How this is simulated &mdash; and why C++ and Vulkan</h2>
+    <p>Every demo here uses the same recipe, the one Jos Stam introduced in 1999 as <em>Stable Fluids</em>. Space is chopped into a regular grid, and each frame the velocity field is pushed through a short pipeline of steps: <strong>advect</strong> it along itself, optionally <strong>diffuse</strong> it for viscosity, then <strong>project</strong> it &mdash; solve for the pressure that removes any divergence &mdash; so the flow stays incompressible. The pressure solve is a Poisson equation, handled by repeatedly averaging each cell with its neighbours (a Jacobi iteration).</p>
+    <p>The crucial fact for performance is that <strong>every grid cell updates from its immediate neighbours and nothing else</strong>. There is no global dependency, so a million cells can be updated at the same instant rather than one after another. That is the exact shape of problem a GPU is built for &mdash; thousands of tiny arithmetic units running the same short program over different data &mdash; whereas a CPU, however fast, mostly works through cells in sequence. This web page proves the point: it runs the identical algorithm in the browser on your GPU via WebGL2.</p>
+
+    <h3>So why does the native version reach for C++ and Vulkan?</h3>
+    <p>Because once you commit to running the whole thing on the GPU, you want the most direct, cross-vendor control the hardware offers &mdash; and you want the simulation and its rendering to live on <em>one</em> API so the fluid never has to make a slow round-trip back to the CPU just to be drawn. Vulkan gives exactly that: explicit control of memory and synchronisation, first-class compute shaders writing into storage buffers, low driver overhead, and it renders too. Here's how the realistic options stack up:</p>
+    <div class="tbl-wrap">
+      <table class="cmp">
+        <thead><tr><th>Choice</th><th>Why you'd pick it</th><th>What it costs</th></tr></thead>
+        <tbody>
+          <tr><td>Vulkan + C++</td><td><strong>Cross-vendor</strong> (AMD, Intel, NVIDIA, mobile); compute and rendering in one API with no CPU round-trip; explicit, low-overhead control</td><td>Enormous boilerplate; you manage memory, queues and synchronisation by hand</td></tr>
+          <tr><td>CUDA</td><td>By far the friendliest GPU-compute tooling and libraries; great profilers</td><td><strong>NVIDIA-only</strong>; you still need a separate graphics API to display the result</td></tr>
+          <tr><td>OpenGL / WebGL</td><td>Much simpler; portable; WebGL needs zero install &mdash; ideal for teaching (it's what runs this page)</td><td>Sandboxed and higher-overhead; limited compute and precision; not built for a research-grade solver</td></tr>
+          <tr><td>WebGPU</td><td>Modern, portable, real compute shaders, runs in a browser <em>and</em> natively</td><td>Still maturing; less raw control and headroom than native Vulkan</td></tr>
+          <tr><td>Rust + wgpu / ash</td><td>Memory safety without a garbage collector; the same GPU power as C++</td><td>Younger ecosystem; the canonical Vulkan SDK, samples and tutorials are still C/C++-first</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>C++ earns its place on the native side for down-to-earth reasons: the official Vulkan SDK is C/C++, so the samples, headers and tooling all assume it; you get manual memory control and zero-overhead abstractions with no garbage-collector pauses mid-frame; and it interoperates directly with the usual graphics libraries (GLFW for windowing, GLM for maths). The price is real too &mdash; it's verbose and unforgiving, and a modern project might reasonably choose Rust to keep the same performance with far fewer memory footguns.</p>
+    <div class="verdict">
+      <p><b>An honest verdict.</b> If the only goal were to <em>teach</em> fluid dynamics, C++ and Vulkan would be overkill &mdash; a WebGPU or WebGL page like this one reaches far more people with a fraction of the code. Vulkan pays off when the goal shifts from explaining to <em>pushing the hardware</em>: maximum control, cross-vendor GPU performance, and a unified compute-and-render pipeline for large, high-resolution simulations. That's why this repository keeps both &mdash; a browser page to build the intuition, and a native Vulkan engine to take it as far as the silicon allows.</p>
+    </div>
+    <div class="final-cta">
+      <a class="primary" href="https://github.com/in-c0/Fluid-Dynamics-Simulation">Read the C++/Vulkan source &rarr;</a>
+      <a href="sandbox.html">Open the full sandbox</a>
     </div>
   </section>
 
@@ -611,7 +689,7 @@
       cv.parentElement.innerHTML = '<div class="fallback" style="display:block">Your browser can\'t run the WebGL2 float pipeline for the live sim, but the lessons above show every piece of it. Try a recent desktop browser.</div>';
       return;
     }
-    const cfg = { SIM: 140, DYE: 480, iters: 22, curl: 24, visc: 0, viscIters: 14, dt: 1, dyeDiss: 1.1, velDiss: 0.2, radius: 0.22, force: 5200 };
+    const cfg = { SIM: 140, DYE: 480, iters: 22, curl: 24, visc: 0, viscIters: 14, dt: 1, dyeDiss: 1.1, velDiss: 0.2, radius: 0.22, force: 5200, project: true, advectSelf: true };
     const curlEl = document.getElementById("sim-curl"), curlV = document.getElementById("sim-curl-v");
     const viscEl = document.getElementById("sim-visc"), viscV = document.getElementById("sim-visc-v");
     curlV.textContent = cfg.curl; viscV.textContent = "0";
@@ -670,11 +748,13 @@
       let u = U(pCurl); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uV, vel.r.at(0)); blit(cu);
       if (cfg.curl > 0) { u = U(pVort); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uC, cu.at(1)); gl.uniform1f(u.curl, cfg.curl); gl.uniform1f(u.dt, dt); blit(vel.w2); vel.swap(); }
       if (cfg.visc > 0.001) { u = U(pCopy); gl.uniform1i(u.uT, vel.r.at(0)); blit(vel0); const a = cfg.visc * 6 * dt * cfg.SIM; for (let i = 0; i < cfg.viscIters; i++) { u = U(pDiff); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uS, vel0.at(1)); gl.uniform1f(u.a, a); blit(vel.w2); vel.swap(); } }
-      u = U(pDiv); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uV, vel.r.at(0)); blit(dv);
-      u = U(pCopy); gl.uniform1i(u.uT, pr.r.at(0)); blit(pr.w2); pr.swap();
-      u = U(pPre); gl.uniform2f(u.tx, vel.tX, vel.tY); for (let i = 0; i < cfg.iters; i++) { gl.uniform1i(u.uD, dv.at(0)); gl.uniform1i(u.uP, pr.r.at(1)); blit(pr.w2); pr.swap(); }
-      u = U(pGrad); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uP, pr.r.at(0)); gl.uniform1i(u.uV, vel.r.at(1)); blit(vel.w2); vel.swap();
-      u = U(pAdv); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uS, vel.r.at(0)); gl.uniform1f(u.dt, dt); gl.uniform1f(u.dis, cfg.velDiss); blit(vel.w2); vel.swap();
+      if (cfg.project) {
+        u = U(pDiv); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uV, vel.r.at(0)); blit(dv);
+        u = U(pCopy); gl.uniform1i(u.uT, pr.r.at(0)); blit(pr.w2); pr.swap();
+        u = U(pPre); gl.uniform2f(u.tx, vel.tX, vel.tY); for (let i = 0; i < cfg.iters; i++) { gl.uniform1i(u.uD, dv.at(0)); gl.uniform1i(u.uP, pr.r.at(1)); blit(pr.w2); pr.swap(); }
+        u = U(pGrad); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uP, pr.r.at(0)); gl.uniform1i(u.uV, vel.r.at(1)); blit(vel.w2); vel.swap();
+      }
+      if (cfg.advectSelf) { u = U(pAdv); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uS, vel.r.at(0)); gl.uniform1f(u.dt, dt); gl.uniform1f(u.dis, cfg.velDiss); blit(vel.w2); vel.swap(); }
       u = U(pAdv); gl.uniform2f(u.tx, vel.tX, vel.tY); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uS, dye.r.at(1)); gl.uniform1f(u.dt, dt); gl.uniform1f(u.dis, cfg.dyeDiss); blit(dye.w2); dye.swap();
     }
     function draw() { const u = U(pDisp); gl.uniform1i(u.uT, dye.r.at(0)); blit(null); }
@@ -682,10 +762,139 @@
     let seeded = false, auto = 0;
     function onShow() { fitGL(); if (!seeded) { seeded = true; for (let i = 0; i < 5; i++) { const c = ncol(); splat(0.5 + (Math.random() - 0.5) * 0.5, 0.5 + (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 900, (Math.random() - 0.5) * 900, [c[0] * 6, c[1] * 6, c[2] * 6]); } } }
     document.getElementById("sim-reset").addEventListener("click", () => { init(); seeded = false; onShow(); });
+
+    // interactive equation terms: tap to toggle each term in the live solver
+    (function () {
+      const note = document.getElementById("term-note"); if (!note) return;
+      const T = {
+        "eqt-adv": { kind: "toggle", on: true, apply: (o) => cfg.advectSelf = o,
+          note: (o) => o ? ["advection on", "on", "<b>Advection</b> is on: the velocity field carries itself downstream, so your pushes roll up into swirls and eddies."]
+                         : ["advection off", "off", "<b>Advection off.</b> The flow no longer transports its own momentum, so pushes just sit and fade instead of curling into vortices &mdash; the swirl vanishes."] },
+        "eqt-pre": { kind: "toggle", on: true, apply: (o) => cfg.project = o,
+          note: (o) => o ? ["pressure on", "on", "<b>Pressure</b> is on: it instantly cancels any bunching-up, keeping the fluid incompressible (&#8711;&#8901;u = 0)."]
+                         : ["pressure off", "off", "<b>Pressure off.</b> Nothing enforces incompressibility now, so the fluid squashes and swells freely and the dye clumps and bursts like a gas. In a real solver this projection is the single most expensive step."] },
+        "eqt-visc": { kind: "boost", on: false, apply: (o) => { cfg.visc = o ? 0.5 : 0; viscEl.value = cfg.visc; viscV.textContent = cfg.visc === 0 ? "0" : cfg.visc.toFixed(2); },
+          note: (o) => o ? ["&#957; boosted", "on", "<b>Viscosity</b> turned up (&#957; &#8776; 0.5): internal friction diffuses momentum and the flow thickens toward honey."]
+                         : ["&#957; = 0", "on", "<b>Viscosity</b> back to zero &mdash; an ideal, frictionless fluid whose vortices stay crisp and long-lived. (The slider gives finer control.)"] },
+        "eqt-force": { kind: "info",
+          note: () => ["your input", "on", "The force <b>f</b> is you: every drag on the canvas adds velocity and dye right here. It's the one term the simulation waits on you to provide."] },
+      };
+      function paint(id) {
+        const t = T[id], on = t.kind === "info" ? true : t.on;
+        const [chip, cls, html] = t.note(on);
+        note.innerHTML = `<span class="st ${cls}">${chip}</span>${html}`;
+      }
+      Object.keys(T).forEach((id) => {
+        const el = document.getElementById(id); if (!el) return;
+        const act = () => {
+          const t = T[id];
+          if (t.kind !== "info") { t.on = !t.on; t.apply(t.on); }
+          if (t.kind === "toggle") el.classList.toggle("off", !t.on);
+          document.querySelectorAll(".eq-term").forEach((e) => e.classList.toggle("sel", e === el));
+          paint(id);
+        };
+        el.addEventListener("click", act);
+        el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); act(); } });
+      });
+    })();
     function tick(dt) {
       fitGL();
       if (!pt.down) { auto += dt; if (auto > 1.3) { auto = 0; const c = ncol(); splat(0.5 + (Math.random() - 0.5) * 0.6, 0.5 + (Math.random() - 0.5) * 0.6, (Math.random() - 0.5) * 700, (Math.random() - 0.5) * 700, [c[0] * 5, c[1] * 5, c[2] * 5]); } }
       step(Math.min(0.05 * cfg.dt, 0.05)); draw();
+    }
+    register({ el: cv, tick, onShow });
+  })();
+
+  /* ===================================================================
+     Lesson 07 — Kármán vortex street (inflow past a draggable obstacle)
+     =================================================================== */
+  (function () {
+    const cv = document.getElementById("cv-karman"); if (!cv) return;
+    const gl = cv.getContext("webgl2", { alpha: false, antialias: false, depth: false, stencil: false });
+    if (!gl || !gl.getExtension("EXT_color_buffer_float")) {
+      cv.parentElement.innerHTML = '<div class="fallback" style="display:block">This live demo needs the WebGL2 float pipeline, but the explanation above still stands. Try a recent desktop browser.</div>';
+      return;
+    }
+    const cfg = { RES: 170, iters: 30, curl: 4, dt: 1, velDiss: 0.06, viscA: 0.5, viscN: 2, U0: 120, obsR: 0.078 };
+    const spEl = document.getElementById("kar-speed"), spV = document.getElementById("kar-speed-v");
+    const paintSp = () => spV.textContent = (cfg.U0 / 100).toFixed(2) + "×";
+    spEl.addEventListener("input", () => { cfg.U0 = +spEl.value; paintSp(); }); paintSp();
+
+    const VERT = `#version 300 es
+      precision highp float; in vec2 aP; out vec2 vUv,vL,vR,vT,vB; uniform vec2 tx;
+      void main(){ vUv=aP*0.5+0.5; vL=vUv-vec2(tx.x,0.); vR=vUv+vec2(tx.x,0.); vT=vUv+vec2(0.,tx.y); vB=vUv-vec2(0.,tx.y); gl_Position=vec4(aP,0.,1.); }`;
+    function sh(t, s) { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(o); return o; }
+    const vs = sh(gl.VERTEX_SHADER, VERT);
+    function prog(f) { const p = gl.createProgram(); gl.attachShader(p, vs); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, f)); gl.linkProgram(p); const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let i = 0; i < n; i++) { const nm = gl.getActiveUniform(p, i).name; u[nm] = gl.getUniformLocation(p, nm); } return { p, u }; }
+    const HH = `#version 300 es
+      precision highp float; precision highp sampler2D; in vec2 vUv,vL,vR,vT,vB; out vec4 o;`;
+    const pAdv = prog(`${HH} uniform sampler2D uV,uS; uniform vec2 tx; uniform float dt,dis; void main(){ vec2 c=vUv-dt*texture(uV,vUv).xy*tx; o=texture(uS,c)/(1.+dis*dt); }`);
+    const pDiv = prog(`${HH} uniform sampler2D uV; void main(){ float L=texture(uV,vL).x,R=texture(uV,vR).x,T=texture(uV,vT).y,B=texture(uV,vB).y; vec2 C=texture(uV,vUv).xy; if(vL.x<0.)L=C.x; if(vR.x>1.)R=C.x; if(vT.y>1.)T=-C.y; if(vB.y<0.)B=-C.y; o=vec4(0.5*(R-L+T-B),0,0,1); }`);
+    const pCurl = prog(`${HH} uniform sampler2D uV; void main(){ float L=texture(uV,vL).y,R=texture(uV,vR).y,T=texture(uV,vT).x,B=texture(uV,vB).x; o=vec4(0.5*(R-L-T+B),0,0,1); }`);
+    const pVort = prog(`${HH} uniform sampler2D uV,uC; uniform float curl,dt; void main(){ float L=texture(uC,vL).x,R=texture(uC,vR).x,T=texture(uC,vT).x,B=texture(uC,vB).x,C=texture(uC,vUv).x; vec2 f=0.5*vec2(abs(T)-abs(B),abs(R)-abs(L)); f/=length(f)+1e-4; f*=curl*C; f.y*=-1.; vec2 ve=texture(uV,vUv).xy; o=vec4(clamp(ve+f*dt,-2000.,2000.),0,1); }`);
+    const pPre = prog(`${HH} uniform sampler2D uP,uD; void main(){ if(vUv.x>0.98){ o=vec4(0,0,0,1); return; } float L=texture(uP,vL).x,R=texture(uP,vR).x,T=texture(uP,vT).x,B=texture(uP,vB).x,d=texture(uD,vUv).x; o=vec4((L+R+B+T-d)*0.25,0,0,1); }`);
+    const pGrad = prog(`${HH} uniform sampler2D uP,uV; void main(){ float L=texture(uP,vL).x,R=texture(uP,vR).x,T=texture(uP,vT).x,B=texture(uP,vB).x; vec2 ve=texture(uV,vUv).xy; ve-=vec2(R-L,T-B); o=vec4(ve,0,1); }`);
+    const pCopy = prog(`${HH} uniform sampler2D uT; void main(){ o=texture(uT,vUv); }`);
+    const pDiff = prog(`${HH} uniform sampler2D uV,uS; uniform float a; void main(){ vec2 L=texture(uV,vL).xy,R=texture(uV,vR).xy,T=texture(uV,vT).xy,B=texture(uV,vB).xy,b=texture(uS,vUv).xy; o=vec4((b+a*(L+R+T+B))/(1.+4.*a),0,1); }`);
+    // enforce free-stream inflow and the solid obstacle each pass
+    const pBound = prog(`${HH} uniform sampler2D uV; uniform vec2 obs,obsVel; uniform float obsR,U0,ar;
+      void main(){ vec2 v=texture(uV,vUv).xy;
+        if(vUv.x<0.03) v=vec2(U0,0.);
+        vec2 d=vUv-obs; d.x*=ar; if(dot(d,d)<obsR*obsR) v=obsVel;
+        o=vec4(v,0,1); }`);
+    const pDisp = prog(`${HH} uniform sampler2D uT; uniform vec2 obs; uniform float obsR,ar,scale;
+      vec3 dv(float t){ t=clamp(t,-1.,1.); vec3 m=vec3(0.05,0.06,0.09),n=vec3(0.23,0.53,1.0),p=vec3(0.95,0.42,0.18); return t<0.?mix(m,n,-t):mix(m,p,t); }
+      void main(){ vec2 d=vUv-obs; d.x*=ar; if(dot(d,d)<obsR*obsR){ float e=smoothstep(obsR*obsR,obsR*obsR*0.6,dot(d,d)); o=vec4(mix(vec3(0.14,0.16,0.2),vec3(0.5,0.55,0.62),e),1.); return; } o=vec4(dv(texture(uT,vUv).x*scale),1.); }`);
+
+    const va = gl.createVertexArray(); gl.bindVertexArray(va);
+    const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    function blit(t) { if (!t) { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight); } else { gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo); gl.viewport(0, 0, t.w, t.h); } gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); }
+    const HF = gl.HALF_FLOAT;
+    function fbo(w, h, ifmt, fmt, fl) { const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, fl); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, fl); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texImage2D(gl.TEXTURE_2D, 0, ifmt, w, h, 0, fmt, HF, null); const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0); gl.clear(gl.COLOR_BUFFER_BIT); return { tex, fbo: f, w, h, tX: 1 / w, tY: 1 / h, at(u) { gl.activeTexture(gl.TEXTURE0 + u); gl.bindTexture(gl.TEXTURE_2D, tex); return u; } }; }
+    function dbl(w, h, i, f, fl) { let a = fbo(w, h, i, f, fl), b = fbo(w, h, i, f, fl); return { get r() { return a; }, get w2() { return b; }, swap() { const t = a; a = b; b = t; } }; }
+    let vel, vel0, cu, dvg, pr, SW, SH, AR;
+    function res(r) { let a = gl.drawingBufferWidth / gl.drawingBufferHeight; if (a < 1) a = 1 / a; const mn = Math.round(r), mx = Math.round(r * a); return gl.drawingBufferWidth > gl.drawingBufferHeight ? [mx, mn] : [mn, mx]; }
+    function init() { const [w, h] = res(cfg.RES); SW = w; SH = h; AR = w / h; vel = dbl(w, h, gl.RG16F, gl.RG, gl.LINEAR); vel0 = fbo(w, h, gl.RG16F, gl.RG, gl.NEAREST); cu = fbo(w, h, gl.R16F, gl.RED, gl.LINEAR); dvg = fbo(w, h, gl.R16F, gl.RED, gl.NEAREST); pr = dbl(w, h, gl.R16F, gl.RED, gl.LINEAR); }
+    function U(x) { gl.useProgram(x.p); return x.u; }
+    function fitGL() { const dpr = Math.min(window.devicePixelRatio || 1, 2); const w = Math.max(1, Math.floor(cv.clientWidth * dpr)), h = Math.max(1, Math.floor(cv.clientHeight * dpr)); if (cv.width !== w || cv.height !== h || !vel) { cv.width = w; cv.height = h; init(); } }
+
+    // obstacle: fixed x, y oscillates gently unless the user drags it
+    const obs = { x: 0.26, y: 0.5, py: 0.5, vy: 0, drag: false };
+    function op(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width, y: 1 - (e.clientY - r.top) / r.height }; }
+    cv.addEventListener("pointerdown", (e) => { const p = op(e); if (Math.hypot((p.x - obs.x) * AR, p.y - obs.y) < cfg.obsR * 2.2 || true) { obs.drag = true; obs.y = clamp(p.y, 0.15, 0.85); cv.setPointerCapture(e.pointerId); } });
+    cv.addEventListener("pointermove", (e) => { if (!obs.drag) return; const p = op(e); obs.y = clamp(p.y, 0.15, 0.85); });
+    const rel = () => obs.drag = false; cv.addEventListener("pointerup", rel); cv.addEventListener("pointercancel", rel); cv.addEventListener("pointerleave", rel);
+
+    function bound() { const u = U(pBound); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform2f(u.obs, obs.x, obs.y); gl.uniform2f(u.obsVel, 0, clamp(obs.vy, -400, 400)); gl.uniform1f(u.obsR, cfg.obsR); gl.uniform1f(u.U0, cfg.U0); gl.uniform1f(u.ar, AR); blit(vel.w2); vel.swap(); }
+    function step(dt) {
+      gl.disable(gl.BLEND);
+      bound();
+      // light viscosity: a couple of Jacobi smoothing passes damp grid-scale noise so the wake stays coherent
+      let u = U(pCopy); gl.uniform1i(u.uT, vel.r.at(0)); blit(vel0);
+      for (let i = 0; i < cfg.viscN; i++) { u = U(pDiff); gl.uniform2f(u.tx, 1 / SW, 1 / SH); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uS, vel0.at(1)); gl.uniform1f(u.a, cfg.viscA); blit(vel.w2); vel.swap(); }
+      u = U(pCurl); gl.uniform2f(u.tx, 1 / SW, 1 / SH); gl.uniform1i(u.uV, vel.r.at(0)); blit(cu);
+      if (cfg.curl > 0) { u = U(pVort); gl.uniform2f(u.tx, 1 / SW, 1 / SH); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uC, cu.at(1)); gl.uniform1f(u.curl, cfg.curl); gl.uniform1f(u.dt, dt); blit(vel.w2); vel.swap(); }
+      u = U(pDiv); gl.uniform2f(u.tx, 1 / SW, 1 / SH); gl.uniform1i(u.uV, vel.r.at(0)); blit(dvg);
+      u = U(pCopy); gl.uniform1i(u.uT, pr.r.at(0)); blit(pr.w2); pr.swap();
+      u = U(pPre); gl.uniform2f(u.tx, 1 / SW, 1 / SH); for (let i = 0; i < cfg.iters; i++) { gl.uniform1i(u.uD, dvg.at(0)); gl.uniform1i(u.uP, pr.r.at(1)); blit(pr.w2); pr.swap(); }
+      u = U(pGrad); gl.uniform2f(u.tx, 1 / SW, 1 / SH); gl.uniform1i(u.uP, pr.r.at(0)); gl.uniform1i(u.uV, vel.r.at(1)); blit(vel.w2); vel.swap();
+      bound();
+      u = U(pAdv); gl.uniform2f(u.tx, 1 / SW, 1 / SH); gl.uniform1i(u.uV, vel.r.at(0)); gl.uniform1i(u.uS, vel.r.at(0)); gl.uniform1f(u.dt, dt); gl.uniform1f(u.dis, cfg.velDiss); blit(vel.w2); vel.swap();
+      bound();
+    }
+    function draw() { const u = U(pDisp); gl.uniform1i(u.uT, cu.at(0)); gl.uniform2f(u.obs, obs.x, obs.y); gl.uniform1f(u.obsR, cfg.obsR); gl.uniform1f(u.ar, AR); gl.uniform1f(u.scale, 0.05); blit(null); }
+
+    let t = 0, warm = false;
+    function onShow() { fitGL(); if (!warm) { warm = true; for (let i = 0; i < 60; i++) step(0.05); } }
+    document.getElementById("kar-reset").addEventListener("click", () => { init(); warm = false; onShow(); });
+    function tick(dtt) {
+      fitGL();
+      t += dtt;
+      if (!obs.drag) obs.y = 0.5 + 0.05 * Math.sin(t * 2.4);      // gentle wobble seeds the shedding
+      obs.vy = (obs.y - obs.py) / Math.max(dtt, 1e-3) * 0.4; obs.py = obs.y;
+      step(0.05); draw();
     }
     register({ el: cv, tick, onShow });
   })();

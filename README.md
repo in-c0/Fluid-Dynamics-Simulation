@@ -33,11 +33,16 @@ Pages at **https://in-c0.github.io/Fluid-Dynamics-Simulation/web/**
 | 03 | **Vorticity** `ω = ∇×u` — straight-looking flow can still spin | Shear a flow and watch paddle-wheels turn | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#vorticity) |
 | 04 | **Viscosity** `ν∇²u` — friction smears sharp motion smooth | Slide ν and watch a pattern melt | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#viscosity) |
 | 05 | **Pressure & incompressibility** `∇·u = 0` | Push fluid outward, then enforce the constraint | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#pressure) |
-| 06 | **The full equation** — all four terms, assembled | Drag a real GPU fluid sim | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#navier-stokes) |
+| 06 | **The full equation** — all four terms, assembled | Drag the sim, and **tap each term** to toggle it live | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#navier-stokes) |
+| 07 | **Kármán vortex street** — why flags flutter and wires hum | Drag the obstacle and watch vortices shed | [try it](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#karman) |
+
+A closing essay — [**How it's built**](https://in-c0.github.io/Fluid-Dynamics-Simulation/web/#implementation) —
+walks through the Stable-Fluids algorithm and weighs *why (and why not)* C++/Vulkan
+versus CUDA, WebGPU, OpenGL, and Rust for the native solver.
 
 The first five demos are lightweight Canvas 2D so each shows only its one idea; the
-capstone is a real WebGL2 [Stable Fluids](https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf)
-solver, mirroring the same stages as the native Vulkan simulator below. Prefer a single
+capstone and vortex-street demos are real WebGL2 [Stable Fluids](https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf)
+solvers, mirroring the same stages as the native Vulkan simulator below. Prefer a single
 knob-filled playground? A full sandbox with every parameter lives in
 [`web/sandbox.html`](web/sandbox.html).
 
